@@ -1,0 +1,10 @@
+﻿
+
+输出目录 c:\output\$(SolutionName)
+中继目录 c:\middle\$(ProjectName)\$(PlatformName)\$(ConfigurationName)
+建置记录档 c:\middle\$(ProjectName)\$(PlatformName)\$(ConfigurationName)\BuildLog.htm
+字元集 none
+
+include Z:\HostWrite\solution\src\include;Z:\HostWrite\solution\include\jni;Z:\HostWrite\solution\include\cv1.0;Z:\HostWrite\solution\include\cxcore1.0;Z:\HostWrite\solution\include\highgui1.0
+前置处理器
+输出档 $(OutDir)\$(PlatformName)\$(ConfigurationName)\$(ProjectName).exe

@@ -1,0 +1,5 @@
+LIBRARY	"checkdll"
+
+EXPORTS
+  GetCheck													@1
+  Java_com_nasoft_diper_qrutil_ImageScanForC_GetCheck		@2
