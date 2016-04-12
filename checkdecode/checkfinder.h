@@ -1,8 +1,8 @@
 #pragma once
+#include "rcommon.h"
 
 #include "cv.h"
 #include <highgui.h>
-#include "rcommon.h"
 
 #define MAX_RECT                  200
 #define MAX_QR_CODE               2048

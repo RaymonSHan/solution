@@ -78,10 +78,10 @@ void TranslateRect(CvPoint2D32f* conner, CvRect& result, CvRect source, CvRect p
   TranslatePoint(conner, topright, x2, y1);
   TranslatePoint(conner, bottomleft, x1, y2);
   TranslatePoint(conner, bottomright, x2, y2);
-  result.x = (int)min(topleft.x, bottomleft.x);
-  result.y = (int)min(topleft.y, topright.y);
-  result.width = (int)max(topright.x, bottomright.x) - result.x;
-  result.height = (int)max(bottomleft.y, bottomright.y) - result.y;
+  result.x = (int)MIN(topleft.x, bottomleft.x);
+  result.y = (int)MIN(topleft.y, topright.y);
+  result.width = (int)MAX(topright.x, bottomright.x) - result.x;
+  result.height = (int)MAX(bottomleft.y, bottomright.y) - result.y;
 
   return;
 };
@@ -160,7 +160,7 @@ RESULT CheckDecode::LoadMask(int* xplace, long xsize, int* yplace, int ysize)
 
       CvRect checkroi;
       TranslateRect(MaxRect, checkroi, info->MaskRect, PaperSize);
-      float enlarge = ENLARGE * max(checkroi.width, checkroi.height);
+      float enlarge = ENLARGE * MAX(checkroi.width, checkroi.height);
       info->RoiRect.x = checkroi.x - (int)enlarge;
       info->RoiRect.y = checkroi.y - (int)enlarge;
       info->RoiRect.width = checkroi.width + (int)enlarge * 2;
@@ -440,7 +440,7 @@ RESULT CheckDecode::ShowImage(IplImage* img, char* name)
   CvSize   resize;
   IplImage *dst;
   ::GetWindowRect(hWnd,&rect); 
-  float scale = max((float)img->width / (rect.right - rect.left - 50), (float)img->height / (rect.bottom - rect.top - 100));
+  float scale = MAX((float)img->width / (rect.right - rect.left - 50), (float)img->height / (rect.bottom - rect.top - 100));
   if (scale < (float)1) scale = (float)1;
   resize.width = (int)(img->width / scale);	
   resize.height = (int)(img->height / scale);
@@ -529,15 +529,19 @@ RESULT CheckDecode::GetResult(char* checked)
 {
   for (int i = 0; i < NowMask; i++ )
   {
-    if (Info[i].CheckResult == 'Y') checked[i] = 'Y';
-    else checked[i] = ' ';
+    if (Info[i].CheckResult == 'Y') *checked ++ = 'Y';
+    else *checked ++ = ' ';
+    if (i % (sizeof(Xplace)/sizeof(int) - 2) == 2)
+    {
+      *checked ++ = ',';
+    }
   }
-  checked[NowMask] = 0;
+  *checked ++ = 0;
   return RESULT_OK;
 }
 
 #ifndef CHECKDLL
-
+/*
 CheckDecode decode;
 
 int main(int argc, char* argv[])
@@ -552,5 +556,5 @@ int main(int argc, char* argv[])
 
 	return 0;
 };
-
+*/
 #endif CHECKDLL

@@ -1,16 +1,18 @@
 #pragma once
 
+#include "windows.h"
+
 #ifdef WIN64
-#define     MYINT						        LONGLONG
-#define     RESULT                  LONGLONG
+#define     MYINT						        __int64
+#define     RESULT                  __int64
 #define     InterExgAdd				      InterlockedExchangeAdd64
 #define     InterCmpExg	     			  InterlockedCompareExchange64
 #define     InterExg				     	  InterlockedExchange64
 #define     InterDec			     		  InterlockedDecrement64
 #define     InterInc					      InterlockedIncrement64
 #else WIN64
-#define     MYINT						        LONG
-#define     RESULT  		            LONG
+#define     MYINT						        long
+#define     RESULT  		            long
 #define     InterExgAdd	            InterlockedExchangeAdd
 #define     InterCmpExg	            InterlockedCompareExchange
 #define     InterExg                InterlockedExchange
@@ -76,6 +78,14 @@
 
 #define     STEP_START              (-1)
 #define     STEP_END                (-2)
+
+#ifndef MAX
+#define MAX(a,b)            (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef MIN
+#define MIN(a,b)            (((a) < (b)) ? (a) : (b))
+#endif
 
 class ThreadStep
 {

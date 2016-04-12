@@ -1,12 +1,9 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "checkdll", "checkdll.vcproj", "{CD13BA89-C0D3-4062-BD3B-80C66C329F08}"
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "checkdll", "checkdll.vcxproj", "{CD13BA89-C0D3-4062-BD3B-80C66C329F08}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testdll", "testdll.vcproj", "{688F1CBB-2A3C-4D74-80DD-6D18DB382503}"
-	ProjectSection(ProjectDependencies) = postProject
-		{CD13BA89-C0D3-4062-BD3B-80C66C329F08} = {CD13BA89-C0D3-4062-BD3B-80C66C329F08}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testdll", "testdll.vcxproj", "{688F1CBB-2A3C-4D74-80DD-6D18DB382503}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
