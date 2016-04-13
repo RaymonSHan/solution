@@ -389,14 +389,14 @@ RESULT CheckDecode::DetectCheck(int order)
   ratelevel2 = info->l2length / rectlength;
   ratelevel3 = info->l3length / rectlength ;
 
-//  printf("i:%2d, l1a:%5.0f, l1l:%4.0f, l2c:%1d, l2a:%5.0f, l2l:%4.0f, l3c:%1d, l3a:%3.0f, l3l:%2.0f\r\n",
-//    order, info->area, info->length, info->l2count, info->l2area, info->l2length, info->l3count, info->l3area, info->l3length);
-//  printf("rl:%6.0f, r1:%6.4f, r2:%6.4f, r3:%6.4f,   rt:%6.4f\r\n", rectlength, ratelevel1, ratelevel2, ratelevel3, ratelevel2/ratelevel1);
+  printf("i:%2d, l1a:%5.0f, l1l:%4.0f, l2c:%1d, l2a:%5.0f, l2l:%4.0f, l3c:%1d, l3a:%3.0f, l3l:%2.0f\r\n",
+    order, info->area, info->length, info->l2count, info->l2area, info->l2length, info->l3count, info->l3area, info->l3length);
+  printf("rl:%6.0f, r1:%6.4f, r2:%6.4f, r3:%6.4f,   rt:%6.4f\r\n", rectlength, ratelevel1, ratelevel2, ratelevel3, ratelevel2/ratelevel1);
 
   if ((ratelevel1 < RATELEVEL1 && ratelevel2 > RATELEVEL2) || ratelevel3 > RATELEVEL3 )
   {
     Info[order].CheckResult = 'Y';
-//     printf ("    is mark !!! \r\n");
+     printf ("    is mark !!! \r\n");
 //     printf("i:%2d, l1a:%5.0f, l1l:%4.0f, l2c:%1d, l2a:%5.0f, l2l:%4.0f, l3c:%1d, l3a:%3.0f, l3l:%2.0f\r\n",
 //       order, info->area, info->length, info->l2count, info->l2area, info->l2length, info->l3count, info->l3area, info->l3length);
   }
@@ -422,6 +422,7 @@ RESULT CheckDecode::DisplayResult(void)
   {
     cvPutText(ImageSrc, (const char*)&QrResult[0], cvPoint(10,100), &font2, CV_RGB(150,34,232));  
   }
+  ShowImage(ImageSrc);
   return RESULT_OK;
 }
 
@@ -511,7 +512,7 @@ RESULT CheckDecode::Process(char* filename)
   result = GetQrCode();
 #endif READQR
 
-  ShowImage(ImageSrc);
+  //ShowImage(ImageSrc);
   return RESULT_OK;
 };
 
@@ -522,6 +523,7 @@ RESULT CheckDecode::ProcessAndDisplay(char* filename)
   {
     result = DisplayResult();
   }
+  cvWaitKey(0);
   return result;
 }
 

@@ -5,6 +5,6 @@
 建置记录档 c:\middle\$(ProjectName)\$(PlatformName)\$(ConfigurationName)\BuildLog.htm
 字元集 none
 
-include Z:\HostWrite\solution\src\include;Z:\HostWrite\solution\include\jni;Z:\HostWrite\solution\include\cv1.0;Z:\HostWrite\solution\include\cxcore1.0;Z:\HostWrite\solution\include\highgui1.0
+include  Z:\HostWrite\solution\src\include;
 前置处理器
 输出档 $(OutDir)\$(PlatformName)\$(ConfigurationName)\$(ProjectName).exe

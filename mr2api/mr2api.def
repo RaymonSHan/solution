@@ -1,0 +1,28 @@
+LIBRARY	"mr2api"
+
+
+EXPORTS
+  Mr2Init               @1
+  Mr2Init2              @2
+  Mr2CreatePkgID        @3
+  Mr2Send               @4
+  Mr2Receive1           @5
+  Mr2Receive1_FreeBuf   @6
+  Mr2Receive2           @7
+  Mr2Receive3           @8
+  Mr2IsLinkOK           @9
+  Mr2GetVersion         @10
+  Mr2RegRecvCondition   @11
+  Mr2Destroy            @12
+  Mr2MultiDestSend      @13
+  Mr2GetPeerUserStat    @14
+  Java_com_sscc_fdep_mrapi_Mr2Init                 @15
+  Java_com_sscc_fdep_mrapi_Mr2CreatePkgID          @16
+  Java_com_sscc_fdep_mrapi_Mr2Send                 @17
+  Java_com_sscc_fdep_mrapi_Mr2Receive1             @18
+  Java_com_sscc_fdep_mrapi_Mr2Receive3             @19
+  Java_com_sscc_fdep_mrapi_Mr2IsLinkOK             @20
+  Java_com_sscc_fdep_mrapi_Mr2GetVersion           @21
+  Java_com_sscc_fdep_mrapi_Mr2RegRecvCondition     @22
+  Java_com_sscc_fdep_mrapi_Mr2Destroy              @23
+  Java_com_sscc_fdep_mrapi_Mr2GetPeerUserStat      @24
