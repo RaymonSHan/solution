@@ -5,6 +5,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "checkdll", "checkdll.vcxpro
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testdll", "testdll.vcxproj", "{688F1CBB-2A3C-4D74-80DD-6D18DB382503}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "checkapp", "checkapp.vcxproj", "{15BC08D1-3CDB-4D96-A398-E150D39501AA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -27,6 +29,12 @@ Global
 		{688F1CBB-2A3C-4D74-80DD-6D18DB382503}.Release|Win32.ActiveCfg = Release|Win32
 		{688F1CBB-2A3C-4D74-80DD-6D18DB382503}.Release|Win32.Build.0 = Release|Win32
 		{688F1CBB-2A3C-4D74-80DD-6D18DB382503}.Release|x64.ActiveCfg = Release|Win32
+		{15BC08D1-3CDB-4D96-A398-E150D39501AA}.Debug|Win32.ActiveCfg = Debug|Win32
+		{15BC08D1-3CDB-4D96-A398-E150D39501AA}.Debug|Win32.Build.0 = Debug|Win32
+		{15BC08D1-3CDB-4D96-A398-E150D39501AA}.Debug|x64.ActiveCfg = Debug|Win32
+		{15BC08D1-3CDB-4D96-A398-E150D39501AA}.Release|Win32.ActiveCfg = Release|Win32
+		{15BC08D1-3CDB-4D96-A398-E150D39501AA}.Release|Win32.Build.0 = Release|Win32
+		{15BC08D1-3CDB-4D96-A398-E150D39501AA}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

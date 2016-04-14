@@ -67,9 +67,11 @@ public:
   RESULT SetPaper(int width, int height);
   RESULT LoadMask(CvRect* clist, long size);
   RESULT LoadMask(int* xplace, long xsize, int* yplace, int ysize);
-  RESULT Process(char* filename);
+  RESULT Process(char* filename, char* checkresult);
   RESULT GetResult(char* checked);
-  RESULT ProcessAndDisplay(char* filename);
+  RESULT ProcessAndDisplay(char* filename, char* checkresult);
+
+  RESULT TestProcess(char* filename);
 };
 
 

@@ -86,6 +86,54 @@ void TranslateRect(CvPoint2D32f* conner, CvRect& result, CvRect source, CvRect p
   return;
 };
 
+IplImage* rotateImage(IplImage* src, int angle, bool clockwise)  
+{
+    angle = angle % 360;
+    int anglecalc = abs(angle) % 180;  
+    if (anglecalc > 90)  
+    {  
+        anglecalc = 90 - (anglecalc % 90);  
+    }  
+    IplImage* dst = NULL;  
+    int width =  
+        (int)(sin(anglecalc * CV_PI / 180.0) * src->height) +  
+        (int)(cos(anglecalc * CV_PI / 180.0 ) * src->width) + 1;  
+    int height =  
+        (int)(cos(anglecalc * CV_PI / 180.0) * src->height) +  
+        (int)(sin(anglecalc * CV_PI / 180.0 ) * src->width) + 1;  
+    int tempLength = (int)sqrt((double)src->width * src->width + src->height * src->height) + 10;  
+    int tempX = (tempLength + 1) / 2 - src->width / 2;  
+    int tempY = (tempLength + 1) / 2 - src->height / 2;  
+    int flag = -1;  
+  
+    dst = cvCreateImage(cvSize(width, height), src->depth, src->nChannels);  
+    cvZero(dst);  
+    IplImage* temp = cvCreateImage(cvSize(tempLength, tempLength), src->depth, src->nChannels);  
+    cvZero(temp);  
+  
+    cvSetImageROI(temp, cvRect(tempX, tempY, src->width, src->height));  
+    cvCopy(src, temp, NULL);  
+    cvResetImageROI(temp);  
+  
+    if (clockwise)  
+        flag = 1;  
+  
+    float m[6];  
+    int w = temp->width;  
+    int h = temp->height;  
+    m[0] = (float) cos(flag * angle * CV_PI / 180.);  
+    m[1] = (float) sin(flag * angle * CV_PI / 180.);  
+    m[3] = -m[1];  
+    m[4] = m[0];  
+    m[2] = w * 0.5f;  
+    m[5] = h * 0.5f;  
+
+    CvMat M = cvMat(2, 3, CV_32F, m);  
+    cvGetQuadrangleSubPix(temp, dst, &M);  
+    cvReleaseImage(&temp);  
+    return dst;  
+};
+
 CheckDecode::CheckDecode()
 {
   ImageSrc = 0;
@@ -189,6 +237,11 @@ RESULT CheckDecode::LoadMask(CvRect* clist, long size)
 // pattern is better for not gaussion, while check is better for with gaussion
 RESULT CheckDecode::PrepareImage(bool gaussian)
 {
+  if (ImageSrc->height < ImageSrc->width)
+  {
+    ImageSrc = rotateImage(ImageSrc, 90, false);
+  }
+
   if (Image1c)
     cvReleaseImage(&Image1c);
   Image1c = cvCreateImage(cvSize(ImageSrc->width, ImageSrc->height), IPL_DEPTH_8U, 1);
@@ -396,7 +449,7 @@ RESULT CheckDecode::DetectCheck(int order)
   if ((ratelevel1 < RATELEVEL1 && ratelevel2 > RATELEVEL2) || ratelevel3 > RATELEVEL3 )
   {
     Info[order].CheckResult = 'Y';
-     printf ("    is mark !!! \r\n");
+     printf ("    is mark !!! for V0.06\r\n");
 //     printf("i:%2d, l1a:%5.0f, l1l:%4.0f, l2c:%1d, l2a:%5.0f, l2l:%4.0f, l3c:%1d, l3a:%3.0f, l3l:%2.0f\r\n",
 //       order, info->area, info->length, info->l2count, info->l2area, info->l2length, info->l3count, info->l3area, info->l3length);
   }
@@ -449,9 +502,6 @@ RESULT CheckDecode::ShowImage(IplImage* img, char* name)
   dst = cvCreateImage( resize, img->depth, img->nChannels);
   cvResize(img, dst, CV_INTER_LINEAR);
 
-//  CvvImage* aa;
-
-
   if (img)
     cvShowImage(name, dst);
 
@@ -487,26 +537,46 @@ int PaperWidth = 932-43;
 int PaperHeight = 1263-267;
 
 
-RESULT CheckDecode::Process(char* filename)
+RESULT CheckDecode::Process(char* filename, char* checkresult)
 {
   RESULT result;
-
+  char check1[MAX_RECT];
+  char check2[MAX_RECT];
+  int nook1 = 0, nook2 = 0;
 
   result = SetPaper(PaperWidth, PaperHeight);
   result = LoadImage(filename);
   if (result != RESULT_OK) return result;
-//  result = PrepareImage(false);
-//  result = FindPattern();
-  result = PrepareImage(true);
 
+  result = PrepareImage(true);
   result = FIndMaxRect();
   result = LoadMask(Xplace, sizeof(Xplace)/sizeof(int) - 1, Yplace, sizeof(Yplace) /sizeof(int)- 1);
-
-
   for (int i = 0; i < NowMask; i++)
   {
     result = FindCheck(i);
+    if (result != RESULT_OK)
+      nook1 ++;
   }
+  GetResult(check1);
+
+  if (nook1 != 0)
+  {
+    ImageSrc = rotateImage(ImageSrc, 180, false);
+    result = PrepareImage(true);
+    result = FIndMaxRect();
+    result = LoadMask(Xplace, sizeof(Xplace)/sizeof(int) - 1, Yplace, sizeof(Yplace) /sizeof(int)- 1);
+    for (int i = 0; i < NowMask; i++)
+    {
+      result = FindCheck(i);
+      if (result != RESULT_OK)
+        nook2 ++;
+    }
+    GetResult(check2);
+  }
+
+  if (nook1 == 0) strncpy(checkresult, check1, MAX_RECT);
+  else if (nook2 == 0) strncpy(checkresult, check2, MAX_RECT);
+  else *checkresult = 0;
 
 #ifdef READQR
   result = GetQrCode();
@@ -516,9 +586,9 @@ RESULT CheckDecode::Process(char* filename)
   return RESULT_OK;
 };
 
-RESULT CheckDecode::ProcessAndDisplay(char* filename)
+RESULT CheckDecode::ProcessAndDisplay(char* filename, char* checkresult)
 {
-  RESULT result = Process(filename);
+  RESULT result = Process(filename, checkresult);
   if (result == RESULT_OK)
   {
     result = DisplayResult();
@@ -542,21 +612,20 @@ RESULT CheckDecode::GetResult(char* checked)
   return RESULT_OK;
 }
 
-#ifndef CHECKDLL
-/*
-CheckDecode decode;
-
-int main(int argc, char* argv[])
+RESULT CheckDecode::TestProcess(char* filename)
 {
   RESULT result;
-  result = decode.Process(argv[1]);
 
+  result = SetPaper(PaperWidth, PaperHeight);
+  result = LoadImage(filename);
+  result = PrepareImage(true);
+  ShowImage(Image1c);
 
+  if (result != RESULT_OK) return result;
 
+//  ImageSrc = rotateImage(ImageSrc, 180, false);
 
-  cvWaitKey(0);
+//  ShowImage(ImageSrc);
+  return 0;
+}
 
-	return 0;
-};
-*/
-#endif CHECKDLL
