@@ -139,6 +139,7 @@ CheckDecode::CheckDecode()
   ImageSrc = 0;
   Image1c = 0;
   NowMask = 0;
+  MaxContour = 0;
 
   QrResult[0] = 0;
 };
@@ -150,11 +151,20 @@ CheckDecode::~CheckDecode()
   if (Image1c)
     cvReleaseImage(&Image1c);
 
+  if (MaxContour)
+    cvClearSeq(MaxContour);
+
   cvDestroyAllWindows();
 };
 
 RESULT CheckDecode::LoadImage(char* filename)
 {
+  HWND hWnd = ::GetDesktopWindow(); 
+  RECT     rect; 
+  CvSize   resize;
+  IplImage *dst;
+  ::GetWindowRect(hWnd,&rect); 
+
   if (ImageSrc) 
     cvReleaseImage(&ImageSrc);
   ImageSrc = 0;
@@ -162,6 +172,24 @@ RESULT CheckDecode::LoadImage(char* filename)
   if (filename)
     ImageSrc = cvLoadImage(filename, 1);
 
+  if (ImageSrc)
+  {
+    if (ImageSrc->height < ImageSrc->width)
+    {
+      ImageSrc = rotateImage(ImageSrc, 90, false);
+    }
+
+    float scale = MAX((float)ImageSrc->width / (rect.right - rect.left - 50), 
+                      (float)ImageSrc->height / (rect.bottom - rect.top - 100));
+    if (scale < (float)1) scale = (float)1;
+    resize.width = (int)(ImageSrc->width / scale);	
+    resize.height = (int)(ImageSrc->height / scale);
+
+    dst = cvCreateImage( resize, ImageSrc->depth, ImageSrc->nChannels);
+    cvResize(ImageSrc, dst, CV_INTER_LINEAR);
+    cvReleaseImage(&ImageSrc);
+    ImageSrc = dst;
+  }
   return ImageSrc ? RESULT_OK : RESULT_ERR;
 };
 
@@ -237,11 +265,6 @@ RESULT CheckDecode::LoadMask(CvRect* clist, long size)
 // pattern is better for not gaussion, while check is better for with gaussion
 RESULT CheckDecode::PrepareImage(bool gaussian)
 {
-  if (ImageSrc->height < ImageSrc->width)
-  {
-    ImageSrc = rotateImage(ImageSrc, 90, false);
-  }
-
   if (Image1c)
     cvReleaseImage(&Image1c);
   Image1c = cvCreateImage(cvSize(ImageSrc->width, ImageSrc->height), IPL_DEPTH_8U, 1);
@@ -290,8 +313,9 @@ RESULT CheckDecode::FIndMaxRect(void)
     CvRect feret = cvBoundingRect(nowcontour);
     CvPoint topleft, topright, bottomleft, bottomright;
 
-    if (feret.width > 300 && feret.height > 300)
+    if (feret.width > (tmp1c->width / 3) && feret.height > (tmp1c->height / 3))
     {
+      if (MaxContour) return RESULT_ERR;
       topleft.x = feret.x;
       topleft.y = feret.y;
       topright.x = feret.x;
@@ -304,8 +328,14 @@ RESULT CheckDecode::FIndMaxRect(void)
       cvSeqPush(points,&topright);
       cvSeqPush(points,&bottomleft);
       cvSeqPush(points,&bottomright);
+      MaxContour = nowcontour;
+
+      cvDrawContours(ImageSrc, nowcontour, CV_RGB(0,0,255), CV_RGB(0,255,0), 0, 2, 8);
     }
-    cvClearSeq(nowcontour);
+    else
+    {
+      cvClearSeq(nowcontour);
+    }
   }
 
   maxbox = cvMinAreaRect2(points);
@@ -475,6 +505,7 @@ RESULT CheckDecode::DisplayResult(void)
   {
     cvPutText(ImageSrc, (const char*)&QrResult[0], cvPoint(10,100), &font2, CV_RGB(150,34,232));  
   }
+
   ShowImage(ImageSrc);
   return RESULT_OK;
 }
@@ -488,7 +519,7 @@ RESULT CheckDecode::ShowImage(IplImage* img, char* name)
     name = DEFAULT_NAME;
   cvNamedWindow(name,1);
 
-
+/*
   HWND hWnd = ::GetDesktopWindow(); 
   RECT     rect; 
   CvSize   resize;
@@ -505,7 +536,10 @@ RESULT CheckDecode::ShowImage(IplImage* img, char* name)
   if (img)
     cvShowImage(name, dst);
 
-  cvReleaseImage(&dst);
+  cvReleaseImage(&dst);*/
+
+  if (img)
+    cvShowImage(name, img);
   return RESULT_OK;
 };
 
@@ -619,13 +653,13 @@ RESULT CheckDecode::TestProcess(char* filename)
   result = SetPaper(PaperWidth, PaperHeight);
   result = LoadImage(filename);
   result = PrepareImage(true);
-  ShowImage(Image1c);
+//  ShowImage(Image1c);
 
   if (result != RESULT_OK) return result;
 
 //  ImageSrc = rotateImage(ImageSrc, 180, false);
 
-//  ShowImage(ImageSrc);
+  ShowImage(ImageSrc);
   return 0;
 }
 

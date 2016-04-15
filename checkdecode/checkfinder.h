@@ -45,6 +45,7 @@ private:
   ShareInfo Info[MAX_RECT];
   CvPoint2D32f MaxRect[4];       // for largest contour placed in screen
   CvPoint DisplaySize;
+  CvSeq *MaxContour;
 
   RESULT LoadImage(char* filename);
   RESULT LoadImage(void* image, long size);
