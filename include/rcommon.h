@@ -223,7 +223,7 @@ error_stop:							                                        \
 #define     __MESSAGE_                    // lazy for ignore
 #define     __MESSAGE                     // lazy for ignore
 
-#define     TRACE                             __TRACE();
+// #define     TRACE                             __TRACE();
 
 #define   __INFO(level, _Format,...) {				                  \
     __MESSAGE_(level, _Format,##__VA_ARGS__);			              \

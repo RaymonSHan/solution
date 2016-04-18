@@ -3,6 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mr2dll", "mr2dll.vcproj", "{819EC0A5-1D3D-4201-8F3A-E1AAC1DFE5AE}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "dlltest", "dlltest.vcproj", "{AFEF72D7-5FAC-4FF5-AAF8-5028212DDECF}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mr2sample", "mr2sample.vcproj", "{C19EA5EE-C091-43D2-9FA4-B6B97BFB60AD}"
+	ProjectSection(ProjectDependencies) = postProject
+		{819EC0A5-1D3D-4201-8F3A-E1AAC1DFE5AE} = {819EC0A5-1D3D-4201-8F3A-E1AAC1DFE5AE}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -19,6 +26,18 @@ Global
 		{819EC0A5-1D3D-4201-8F3A-E1AAC1DFE5AE}.Release|Win32.Build.0 = Release|Win32
 		{819EC0A5-1D3D-4201-8F3A-E1AAC1DFE5AE}.Release|x64.ActiveCfg = Release|x64
 		{819EC0A5-1D3D-4201-8F3A-E1AAC1DFE5AE}.Release|x64.Build.0 = Release|x64
+		{AFEF72D7-5FAC-4FF5-AAF8-5028212DDECF}.Debug|Win32.ActiveCfg = Debug|Win32
+		{AFEF72D7-5FAC-4FF5-AAF8-5028212DDECF}.Debug|Win32.Build.0 = Debug|Win32
+		{AFEF72D7-5FAC-4FF5-AAF8-5028212DDECF}.Debug|x64.ActiveCfg = Debug|Win32
+		{AFEF72D7-5FAC-4FF5-AAF8-5028212DDECF}.Release|Win32.ActiveCfg = Release|Win32
+		{AFEF72D7-5FAC-4FF5-AAF8-5028212DDECF}.Release|Win32.Build.0 = Release|Win32
+		{AFEF72D7-5FAC-4FF5-AAF8-5028212DDECF}.Release|x64.ActiveCfg = Release|Win32
+		{C19EA5EE-C091-43D2-9FA4-B6B97BFB60AD}.Debug|Win32.ActiveCfg = Debug|Win32
+		{C19EA5EE-C091-43D2-9FA4-B6B97BFB60AD}.Debug|Win32.Build.0 = Debug|Win32
+		{C19EA5EE-C091-43D2-9FA4-B6B97BFB60AD}.Debug|x64.ActiveCfg = Debug|Win32
+		{C19EA5EE-C091-43D2-9FA4-B6B97BFB60AD}.Release|Win32.ActiveCfg = Release|Win32
+		{C19EA5EE-C091-43D2-9FA4-B6B97BFB60AD}.Release|Win32.Build.0 = Release|Win32
+		{C19EA5EE-C091-43D2-9FA4-B6B97BFB60AD}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
