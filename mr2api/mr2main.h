@@ -1,6 +1,15 @@
 
 #pragma once
 
+#include <string>  
+#include <iostream>  
+#include <map>  
+#include <utility>  
+#include <set>
+#include <algorithm>
+#include <list>
+#include <iostream>
+
 using namespace std;
 
 #ifdef _DEBUG
@@ -94,14 +103,6 @@ unsigned int __stdcall LoopThread(PVOID pM);
 unsigned int __stdcall ScheThread(PVOID pM);
 unsigned int __stdcall SendThread(PVOID pM);
 
-#define IntoClassFunction(func)                                                       \
-  unsigned int __stdcall func(PVOID pM)                                               \
-  {                                                                                   \
-    ProcessMr* pMr = (ProcessMr*) pM;                                                 \
-    pMr->func();                                                                      \
-    return 0;                                                                         \
-  }
-
 template <class T> class LockList
 {
 private:
@@ -146,22 +147,26 @@ private:
   sSemaPacket lastRecvProp;        // send & recv have different Prop, record the status of last packet
   sSemaPacket lastSendProp;
 
+  bool SendAfterConnect;
 
 public:
   ProcessMr();
   RESULT InitConnect(const char* psAppID, const char* psAppPasswd, 
                      const STUConnInfo2* pArrConnInfo, int iArrConnInfoCount, int iThreadCount);
   RESULT ProcessPacket(char* buffer, int length, int &processed, psSemaPacket packet);
+  RESULT GenPacket(sSemaPacket &packet, long packetType, const char* psPkg, int iPkgLen, STUMsgProperty2* pMsgPropery);
   ~ProcessMr(void);
 
   RESULT IsLinkOK(void);
   int Mr2Send(const char* psPkg, int iPkgLen, STUMsgProperty2* pMsgPropery, int iMillSecTimeo);
-  int ProcessMr::Mr2Receive(char** ppsPkg, int* piOutPkgLen, STUMsgProperty2* pMsgPropery, int iMillSecTimeo);
+  int Mr2Send(psSemaPacket packet, int iMillSecTimeo);
+  int Mr2Receive(char** ppsPkg, int* piOutPkgLen, STUMsgProperty2* pMsgPropery, int iMillSecTimeo);
 
   void RecvThread(void);
   void LoopThread(void);
   void ScheThread(void);
   void SendThread(void);
+  void SetSendAfterConnect(bool sac) {SendAfterConnect = sac;};
 };
 
 

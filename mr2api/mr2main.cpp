@@ -93,6 +93,7 @@ ProcessMr::ProcessMr()
   memset(&ConnectSocket, 0, sizeof(ConnectSocket));
   time( &tNowTime );
   initResult = RESULT_OK;
+  SendAfterConnect = true;
 
   DEFINE_SEMA(SendSign, 0, MAX_THREAD);
   DEFINE_CRIT(SendCrit);                  // for user thread use, do send serial
@@ -102,14 +103,18 @@ ProcessMr::ProcessMr()
 RESULT ProcessMr::InitConnect(const char* psAppID, const char* psAppPasswd, 
                               const STUConnInfo2* pArrConnInfo, int iArrConnInfoCount, int iThreadCount)
 {
+  STUMsgProperty2 prop;
 
   conninfo = pArrConnInfo;
-  memset(&connectPacket, 0, sizeof(sSemaPacket));
-  connectPacket.packetHead.headID = PACKET_LINK;
-  connectPacket.packetHead.headLength = sizeof(STUMsgHead) + sizeof(STUMsgProperty2);
-  connectPacket.packetHead.headMulti = 0;
-  connectPacket.packetHead.headUser = 0;
-  strncpy_s(connectPacket.packetProperty.m_szDestAppID, psAppID, MR2_MAXLEN_ADDR);
+  memset(&prop, 0, sizeof(STUMsgProperty2));
+  strncpy_s(prop.m_szDestAppID, psAppID, MR2_MAXLEN_ADDR);
+
+  GenPacket(connectPacket, PACKET_LINK, NULL, 0, &prop);
+//   memset(&connectPacket, 0, sizeof(sSemaPacket));
+//   connectPacket.packetHead.headID = PACKET_LINK;
+//   connectPacket.packetHead.headLength = sizeof(STUMsgHead) + sizeof(STUMsgProperty2);
+//   connectPacket.packetHead.headMulti = 0;
+//   connectPacket.packetHead.headUser = 0;
 
   UNLOCK_STEP(Step, 0);
   for (int i = 0; i < iArrConnInfoCount; i++)
@@ -130,7 +135,38 @@ ProcessMr::~ProcessMr(void)
   return;
 }
 
+RESULT ProcessMr::GenPacket(sSemaPacket &packet, long packetType, const char* psPkg, int iPkgLen, STUMsgProperty2* pMsgPropery)
+{
+  memset(&packet, 0, sizeof(sSemaPacket));
+  if (psPkg && (packetType == PACKET_SEND || packetType == PACKET_USERONLY))
+  {
+    packet.pkgData = (char*)psPkg;
+    packet.pkgLength = iPkgLen;
+    packet.packetHead.headUser = iPkgLen;
+  }
+  switch (packetType)
+  {
+  case PACKET_HELLO :
+  case PACKET_USERONLY :
+    packet.packetHead.headLength = sizeof(STUMsgHead);        // MUST be 0x10
+    break;
+  case PACKET_LINK :
+  case PACKET_SEND :
+    packet.packetHead.headLength = sizeof(STUMsgHead) + sizeof(STUMsgProperty2);
+    if (pMsgPropery)
+    {
+      memcpy(&packet.packetProperty, pMsgPropery, sizeof(STUMsgProperty2));
+    }
+    break;
+  case PACKET_MULTISEND :
+  case PACKET_STATUS :
+  default:
+    return RESULT_ERR;
+  }
 
+  packet.packetHead.headID = packetType;
+  return RESULT_OK;
+}
 
 void ProcessMr::RecvThread(void)
 {
@@ -170,9 +206,13 @@ void ProcessMr::RecvThread(void)
       if (ret != SOCKET_ERROR)
       {
         infos->status = STATUS_OK;
-//#ifdef CONNECT_DEBUG      // in debug , not send link packet for test
-        send(infos->connectSocket, (char*)&connectPacket.packetHead, sizeof(STUMsgHead) + sizeof(STUMsgProperty2), 0);
-//#endif CONNECT_DEBUG
+// normally send first packet after connect
+        if (SendAfterConnect)
+        {
+          send(infos->connectSocket, (char*)&connectPacket.packetHead, 
+                sizeof(STUMsgHead) + sizeof(STUMsgProperty2), 0);
+        }
+// normally end
       }
       UNLOCK_STEP(Step, order + 1);   // connect CLIENT in order, one by one
       if (ShouldQuit)
@@ -325,10 +365,11 @@ void ProcessMr::SendThread(void)
   sSemaPacket packet;
   RESULT result;
 
-  memset(&lastSendProp, 0, sizeof(sSemaPacket));
-  lastSendProp.packetHead.headID = PACKET_USERONLY;
-  lastSendProp.packetHead.headLength = sizeof(STUMsgHead);
-  lastSendProp.packetHead.headMulti = 0;
+  GenPacket(lastSendProp, PACKET_USERONLY, NULL, 0, NULL);
+//   memset(&lastSendProp, 0, sizeof(sSemaPacket));
+//   lastSendProp.packetHead.headID = PACKET_USERONLY;
+//   lastSendProp.packetHead.headLength = sizeof(STUMsgHead);
+//   lastSendProp.packetHead.headMulti = 0;
   while (initResult == RESULT_OK && !ShouldQuit)          // if error ahead, do NOTHING
   {
     LOCK_SEMA(SendSign);    // wait user program send data
@@ -387,10 +428,10 @@ void ProcessMr::SendThread(void)
   return;
 }
 
-IntoClassFunction(RecvThread);
-IntoClassFunction(LoopThread);
-IntoClassFunction(ScheThread);
-IntoClassFunction(SendThread);
+IntoClassFunction(ProcessMr, RecvThread);
+IntoClassFunction(ProcessMr, LoopThread);
+IntoClassFunction(ProcessMr, ScheThread);
+IntoClassFunction(ProcessMr, SendThread);
 
 RESULT ProcessMr::IsLinkOK(void)
 {
@@ -406,50 +447,55 @@ int ProcessMr::Mr2Send(const char* psPkg, int iPkgLen, STUMsgProperty2* pMsgProp
 {
   sSemaPacket packet;
 
-  packet.pkgData = (char*)psPkg;
-  packet.pkgLength = iPkgLen;
-  packet.nowLength = 0;
-  packet.packetHead.headID = 3;
-  packet.packetHead.headLength = MAX_HEAD;
-  packet.packetHead.headMulti = 0;
-  packet.packetHead.headUser = iPkgLen;
-  memcpy(&packet.packetProperty, pMsgPropery, sizeof(STUMsgProperty2));
-  DEFINE_SEMA(packet.hSemaSend, 0, MAX_SEMA);
-  SendList.SetList(packet);
+//   packet.pkgData = (char*)psPkg;
+//   packet.pkgLength = iPkgLen;
+//   packet.nowLength = 0;
+//   packet.packetHead.headID = PACKET_SEND;
+//   packet.packetHead.headLength = MAX_HEAD;
+//   packet.packetHead.headMulti = 0;
+//   packet.packetHead.headUser = iPkgLen;
+//   memcpy(&packet.packetProperty, pMsgPropery, sizeof(STUMsgProperty2));
+  GenPacket(packet, PACKET_SEND, psPkg, iPkgLen, pMsgPropery);
+  return Mr2Send(&packet, iMillSecTimeo);
+}
+
+int ProcessMr::Mr2Send(psSemaPacket packet, int iMillSecTimeo)
+{
+  DEFINE_SEMA(packet->hSemaSend, 0, MAX_SEMA);
+  SendList.SetList(*packet);
 
   UNLOCK_SEMA(SendSign);
-  LOCK_SEMA(packet.hSemaSend);
-  FREE_SEMA(packet.hSemaSend);
-
+  LOCK_SEMA(packet->hSemaSend);
+  FREE_SEMA(packet->hSemaSend);
   return 0;
 }
 
 int ProcessMr::Mr2Receive(char** ppsPkg, int* piOutPkgLen, STUMsgProperty2* pMsgPropery, int iMillSecTimeo)
 {
-  sSemaThread thread;
-  psSemaThread pthread = &thread;
+  sSemaThread mthread;
+  psSemaThread pthread = &mthread;
 
   if (*ppsPkg && *piOutPkgLen)
   {
-    thread.recvUserData = *ppsPkg;      // use user buffer
-    thread.recvUserSize = *piOutPkgLen;
+    mthread.recvUserData = *ppsPkg;      // use user buffer
+    mthread.recvUserSize = *piOutPkgLen;
   }
   else
   {
-    thread.recvUserData = 0;      // use system buffer, set to 0
-    thread.recvUserSize = 0;
+    mthread.recvUserData = 0;      // use system buffer, set to 0
+    mthread.recvUserSize = 0;
   }
-  memcpy(&thread.threadProperty, pMsgPropery, sizeof(STUMsgProperty2));
-  DEFINE_SEMA(thread.hSemaRecv, 0, 1);        // only set once !!!!! should check when Release
+  memcpy(&mthread.threadProperty, pMsgPropery, sizeof(STUMsgProperty2));
+  DEFINE_SEMA(mthread.hSemaRecv, 0, 1);        // only set once !!!!! should check when Release
   ThreadList.SetList(pthread);
 
   UNLOCK_SEMA(ScheSign);      // begin sche thread
-  LOCK_SEMA(thread.hSemaRecv);
+  LOCK_SEMA(mthread.hSemaRecv);
   
   // if timeout, remove thread
 
-  *ppsPkg = thread.recvUserData;
-  *piOutPkgLen = thread.recvUserSize;
+  *ppsPkg = mthread.recvUserData;
+  *piOutPkgLen = mthread.recvUserSize;
 //  ThreadList.Remove(pthread);     remove should in sche, just after found match thread
 
   return 0;
@@ -551,43 +597,6 @@ RESULT ProcessMr::ProcessPacket(char* buffer, int length, int &processed, psSema
 }
 
 
-/*
-RESULT ConnectSocket(SocketMap &socket, STUMsgProperty2 &head)
-{
-  Client.sin_family = AF_INET;
-  Client.sin_addr.s_addr = inet_addr( "127.0.0.1" );
-  Client.sin_port = htons( 27015 );
-
-  MYINT sendhead = 0;
-
-  if (socket.ConnectSocket == INVALID_SOCKET)
-  {
-    if ( connect(socket.ConnectSocket, (SOCKADDR*)&Client, sizeof(Client) ) == SOCKET_ERROR) 
-    {
-      return RESULT_WSA_ERROR;
-    }
-    memcpy(&socket.MsgStruct, &head, sizeof(STUMsgProperty2));
-    sendhead = 1;
-  }
-  else
-  {
-    sendhead = memcmp(&socket.MsgStruct, &head, sizeof(STUMsgProperty2));
-  }
-
-  if (sendhead)
-  {
-    // should detect multi
-    send(socket.ConnectSocket, (char*)&socket.blank1, sizeof(STUMsgProperty2) + 0x10, 0);
-  }
-
-  return RESULT_OK;
-
-//  int nNetTimeout = 2000ms;
-//  if (SOCKET_ERROR ==  setsockopt(serSocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&nNetTimeout, sizeof(int))) 
-//    printf("Set Ser_RecTIMEO error !\r\n"); 
-
-}
-*/
 void* WINAPI MAIN_C(Mr2Init)(const char* psAppID, const char* psAppPasswd, 
                       OnReceiveCallBack2 onReceive,const STUConnInfo2* pArrConnInfo, int iArrConnInfoCount, 
   void* pvUserData)

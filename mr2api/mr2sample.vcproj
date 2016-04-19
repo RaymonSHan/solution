@@ -193,6 +193,10 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\mr2main.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\mr2sample.cpp"
 				>
 			</File>
@@ -225,11 +229,11 @@
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
 			<File
-				RelativePath=".\res\mr2sample.ico"
+				RelativePath=".\mr2sample.ico"
 				>
 			</File>
 			<File
-				RelativePath=".\mr2sample.ico"
+				RelativePath=".\res\mr2sample.ico"
 				>
 			</File>
 			<File
@@ -239,5 +243,9 @@
 		</Filter>
 	</Files>
 	<Globals>
+		<Global
+			Name="RESOURCE_FILE"
+			Value="mr2sample.rc"
+		/>
 	</Globals>
 </VisualStudioProject>

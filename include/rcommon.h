@@ -73,6 +73,14 @@
 #define     FREE_CRIT(lock)                                     \
   DeleteCriticalSection(&lock);  
 
+#define IntoClassFunction(claname, func)                        \
+  unsigned int __stdcall func(PVOID pM)                         \
+  {                                                             \
+    claname* pMr = (claname*) pM;                               \
+    pMr->func();                                                \
+    return 0;                                                   \
+  }
+
 #define     MAX_STEP                16
 #define     MAX_PARA                16
 
