@@ -128,3 +128,6 @@ https://github.com/ethereum/wiki/wiki/JavaScript-API
 
 ** TODO solidity learn
 https://ethereum.github.io/solidity//docs/simple-smart-contract/ 
+
+* second time, from Apr. 20 '16
+!!! http://ethfans.org/posts/r3-corda-announcement a different blockchain
