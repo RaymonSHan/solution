@@ -5,7 +5,7 @@
 
 #define DEFAULT_NAME "ImageSrc"
 
-#define ENLARGE          ((float)0.2)
+#define ENLARGE          ((float)0.3)
 
 #define RECTRATE         ((float)2.0)
 #define RATELEVEL1       ((float)1.6)
@@ -333,7 +333,54 @@ RESULT CheckDecode::FIndMaxRect(void)
       cvSeqPush(points,&bottomright);
       MaxContour = nowcontour;
 
-      cvDrawContours(ImageSrc, nowcontour, CV_RGB(0,0,255), CV_RGB(0,255,0), 0, 2, 8);
+
+      IplImage * dst = cvCreateImage(cvSize(ImageSrc->width, ImageSrc->height), ImageSrc->depth, ImageSrc->nChannels);  
+
+
+  CvMemStorage* storage = cvCreateMemStorage(0);  
+        CvSeq* lines = 0;   
+   double rho=1;  
+   double theta=CV_PI/180;  
+   double threshold=30;  
+   double min_length=80;//CV_HOUGH_PROBABILISTIC  
+   double sepration_connection=4;//CV_HOUGH_PROBABILISTIC  
+  
+   //binary image is needed.  
+    lines = cvHoughLines2(  
+      Image1c,   
+      storage,   
+      CV_HOUGH_PROBABILISTIC,   
+      rho,  
+      theta,   
+      threshold,  
+      min_length,   
+      sepration_connection);  
+  
+   //draw lines found by cvHoughLines2  
+    for( int i = 0; i < lines->total; i++ )  
+    {  
+       CvPoint* line = (CvPoint*)cvGetSeqElem(lines,i);  
+       cvLine(dst, line[0], line[1], CV_RGB(255,0,0),3, 8 );//cannyImgColor  
+       cvCircle(dst, line[0], 3* (i%5) + 4, CV_RGB(0,255,255), 2);
+       cvCircle(dst, line[1], 3* (i%5) + 4, CV_RGB(255,0,255), 2);
+
+    } 
+    ShowImage(dst, "dst");
+
+      cvReleaseMemStorage(&storage);
+
+
+
+
+          CvSeq*     hull = cvConvexHull2(nowcontour,0,CV_CLOCKWISE,1);  
+       for(int i = 0; i < hull -> total; i++) 
+        {  
+//            CvPoint *pt = (CvPoint*) cvGetSeqElem(hull, i);  
+//            cvCircle(ImageSrc, *pt, 20, CV_RGB(255,255,255), 10);
+
+       }
+  //    cvDrawContours(ImageSrc, nowcontour, CV_RGB(0,0,255), CV_RGB(0,255,0), 0, 2, 8);
+      cvRectangle(ImageSrc, topleft, bottomright, CV_RGB(221,134,212));
     }
 //    else
 //    {
@@ -504,6 +551,13 @@ RESULT CheckDecode::DisplayResult(void)
   {
     if (Info[i].CheckResult == 'Y')
     cvPutText(ImageSrc, "Yes", Info[i].DisplayPoint, &font, CV_RGB(211,34,0));  
+
+    if (i % 2 == 0)
+    {
+      CvPoint lt = cvPoint(Info[i].RoiRect.x, Info[i].RoiRect.y);
+      CvPoint rb = cvPoint(Info[i].RoiRect.x + Info[i].RoiRect.width, Info[i].RoiRect.y + Info[i].RoiRect.height);
+      cvRectangle(ImageSrc, lt, rb, CV_RGB(21,34,212));
+    }
   }
   if (QrResult[0])
   {
@@ -623,7 +677,7 @@ RESULT CheckDecode::ProcessAndDisplay(char* filename, char* checkresult, bool ro
   RESULT result;
   result = Process(filename, checkresult, rotate);
 
-  if (result == RESULT_OK)
+//  if (result == RESULT_OK)
   {
     result = DisplayResult();
   }
