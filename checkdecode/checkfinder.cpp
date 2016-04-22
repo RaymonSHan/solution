@@ -5,7 +5,7 @@
 
 #define DEFAULT_NAME "ImageSrc"
 
-#define ENLARGE          ((float)0.3)
+#define ENLARGE          ((float)0.2)
 
 #define RECTRATE         ((float)2.0)
 #define RATELEVEL1       ((float)1.6)
@@ -163,7 +163,7 @@ RESULT CheckDecode::LoadImage(char* filename)
   HWND hWnd = ::GetDesktopWindow(); 
   RECT     rect; 
   CvSize   resize;
-  IplImage *dst;
+//  IplImage *dst;
   ::GetWindowRect(hWnd,&rect); 
 
   if (ImageSrc) 
@@ -177,7 +177,7 @@ RESULT CheckDecode::LoadImage(char* filename)
   {
     if (ImageSrc->height < ImageSrc->width)
     {
-      ImageSrc = rotateImage(ImageSrc, 90, false);
+      ImageSrc = rotateImage(ImageSrc, 90, true);
     }
 
     float scale = MAX((float)ImageSrc->width / (rect.right - rect.left - 50), 
@@ -186,10 +186,12 @@ RESULT CheckDecode::LoadImage(char* filename)
     resize.width = (int)(ImageSrc->width / scale);	
     resize.height = (int)(ImageSrc->height / scale);
 
+/*
     dst = cvCreateImage( resize, ImageSrc->depth, ImageSrc->nChannels);
     cvResize(ImageSrc, dst, CV_INTER_LINEAR);
     cvReleaseImage(&ImageSrc);
     ImageSrc = dst;
+*/
   }
   return ImageSrc ? RESULT_OK : RESULT_ERR;
 };
@@ -419,6 +421,7 @@ RESULT CheckDecode::FindCheck(int order)
 
 
   cvSetImageROI(tmp1c, info->RoiRect);
+
 //   ShowImage(tmp1c);
   cvFindContours(tmp1c, store_c, &contours, sizeof(CvContour),
     CV_RETR_TREE,CV_CHAIN_APPROX_NONE,cvPoint(0,0));
@@ -480,7 +483,7 @@ RESULT CheckDecode::DetectCheck(int order)
   if ((ratelevel1 < RATELEVEL1 && ratelevel2 > RATELEVEL2) || ratelevel3 > RATELEVEL3 )
   {
     Info[order].CheckResult = 'Y';
-     printf ("    is mark !!! for V0.07\r\n");
+     printf ("    is mark !!! for V0.08\r\n");
 //     printf("i:%2d, l1a:%5.0f, l1l:%4.0f, l2c:%1d, l2a:%5.0f, l2l:%4.0f, l3c:%1d, l3a:%3.0f, l3l:%2.0f\r\n",
 //       order, info->area, info->length, info->l2count, info->l2area, info->l2length, info->l3count, info->l3area, info->l3length);
   }
@@ -520,7 +523,7 @@ RESULT CheckDecode::ShowImage(IplImage* img, char* name)
     name = DEFAULT_NAME;
   cvNamedWindow(name,1);
 
-/*
+
   HWND hWnd = ::GetDesktopWindow(); 
   RECT     rect; 
   CvSize   resize;
@@ -537,10 +540,11 @@ RESULT CheckDecode::ShowImage(IplImage* img, char* name)
   if (img)
     cvShowImage(name, dst);
 
-  cvReleaseImage(&dst);*/
-
+  cvReleaseImage(&dst);
+/*
   if (img)
     cvShowImage(name, img);
+*/
   return RESULT_OK;
 };
 
@@ -572,16 +576,18 @@ int PaperWidth = 932-43;
 int PaperHeight = 1263-267;
 
 
-RESULT CheckDecode::Process(char* filename, char* checkresult)
+RESULT CheckDecode::Process(char* filename, char* checkresult, bool rotate)
 {
   RESULT result;
-  char check1[MAX_RECT];
-  char check2[MAX_RECT];
-  int nook1 = 0, nook2 = 0;
+  char check[MAX_RECT];
+  int nook = 0;
 
   result = SetPaper(PaperWidth, PaperHeight);
   result = LoadImage(filename);
   if (result != RESULT_OK) return result;
+
+  if (rotate)
+    ImageSrc = rotateImage(ImageSrc, 180, false);
 
   result = PrepareImage(true);
   result = FIndMaxRect();
@@ -590,44 +596,33 @@ RESULT CheckDecode::Process(char* filename, char* checkresult)
   {
     result = FindCheck(i);
     if (result != RESULT_OK)
-      nook1 ++;
+      nook ++;
   }
-  GetResult(check1);
+  GetResult(check);
 
-  if (nook1 != 0)
+  if (nook == 0)
   {
-    if (MaxContour)
-//      cvClearSeq(MaxContour);
-      MaxContour = NULL;
-
-    ImageSrc = rotateImage(ImageSrc, 180, false);
-    result = PrepareImage(true);
-    result = FIndMaxRect();
-    result = LoadMask(Xplace, sizeof(Xplace)/sizeof(int) - 1, Yplace, sizeof(Yplace) /sizeof(int)- 1);
-    for (int i = 0; i < NowMask; i++)
-    {
-      result = FindCheck(i);
-      if (result != RESULT_OK)
-        nook2 ++;
-    }
-    GetResult(check2);
+    strncpy(checkresult, check, MAX_RECT);
+    return RESULT_OK;
   }
-
-  if (nook1 == 0) strncpy(checkresult, check1, MAX_RECT);
-  else if (nook2 == 0) strncpy(checkresult, check2, MAX_RECT);
-  else *checkresult = 0;
+  else
+  {
+    *checkresult = 0;
+    return RESULT_ERR;
+  }
 
 #ifdef READQR
   result = GetQrCode();
 #endif READQR
 
   //ShowImage(ImageSrc);
-  return RESULT_OK;
 };
 
-RESULT CheckDecode::ProcessAndDisplay(char* filename, char* checkresult)
+RESULT CheckDecode::ProcessAndDisplay(char* filename, char* checkresult, bool rotate)
 {
-  RESULT result = Process(filename, checkresult);
+  RESULT result;
+  result = Process(filename, checkresult, rotate);
+
   if (result == RESULT_OK)
   {
     result = DisplayResult();
