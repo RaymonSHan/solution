@@ -530,7 +530,7 @@ RESULT CheckDecode::DetectCheck(int order)
   if ((ratelevel1 < RATELEVEL1 && ratelevel2 > RATELEVEL2) || ratelevel3 > RATELEVEL3 )
   {
     Info[order].CheckResult = 'Y';
-     printf ("    is mark !!! for V0.08\r\n");
+     printf ("    is mark !!! for V1.0\r\n");
 //     printf("i:%2d, l1a:%5.0f, l1l:%4.0f, l2c:%1d, l2a:%5.0f, l2l:%4.0f, l3c:%1d, l3a:%3.0f, l3l:%2.0f\r\n",
 //       order, info->area, info->length, info->l2count, info->l2area, info->l2length, info->l3count, info->l3area, info->l3length);
   }

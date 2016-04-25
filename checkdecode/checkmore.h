@@ -18,7 +18,7 @@ private:
   ShareInfo CheckInfo[MAX_RECT];
   CvPoint2D32f MaxRect[4];       // for largest contour placed in screen
 
-  CvScalar edgerp[4 + 4];            // record 4 point
+  CvScalar EdgePlace[4 + 4];            // record 4 point
 
   RESULT PrepareImage(char* filename);
   RESULT ClearState(void);

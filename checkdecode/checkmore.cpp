@@ -155,6 +155,12 @@ RESULT CheckMore::ClearState(void)
     cvReleaseImage(&ImageTran1c);
   ImageTran1c = NULL;
 
+  PaperSize = cvRect(0, 0, 0, 0);
+  NowCheck = 0;
+//  ShareInfo CheckInfo[MAX_RECT];
+//  CvPoint2D32f MaxRect[4];       // for largest contour placed in screen
+//  CvScalar edgerp[4 + 4];            // record 4 point
+
   return RESULT_OK;
 };
 
@@ -193,7 +199,7 @@ RESULT CheckMore::FindMaxRect(void)
   CvPoint *p0, *p1, *p2;
 
   int nowrp = 0;
-  memset(edgerp, 0, sizeof(edgerp));
+  memset(EdgePlace, 0, sizeof(EdgePlace));
 
   for (i = 0; i < totalhull; i++)
   {
@@ -206,16 +212,16 @@ RESULT CheckMore::FindMaxRect(void)
     {
       for (j = 0; j < nowrp; j++)
       {
-        if (fabs(edgerp[j].val[0] - p1->x) < samepoint && fabs(edgerp[j].val[1] - p1->y) < samepoint)
+        if (fabs(EdgePlace[j].val[0] - p1->x) < samepoint && fabs(EdgePlace[j].val[1] - p1->y) < samepoint)
           break;
       }
       if (j == nowrp)
         nowrp ++;
       if (nowrp > 4)
         return RESULT_PARA_ERROR;
-      edgerp[j].val[0] = (edgerp[j].val[0] * edgerp[j].val[3] + p1->x) / (edgerp[j].val[3] + 1);
-      edgerp[j].val[1] = (edgerp[j].val[1] * edgerp[j].val[3] + p1->y) / (edgerp[j].val[3] + 1);
-      edgerp[j].val[3] += 1; 
+      EdgePlace[j].val[0] = (EdgePlace[j].val[0] * EdgePlace[j].val[3] + p1->x) / (EdgePlace[j].val[3] + 1);
+      EdgePlace[j].val[1] = (EdgePlace[j].val[1] * EdgePlace[j].val[3] + p1->y) / (EdgePlace[j].val[3] + 1);
+      EdgePlace[j].val[3] += 1; 
     }
   }
 
@@ -228,7 +234,7 @@ RESULT CheckMore::FindMaxRect(void)
 #ifdef _DEBUG
   for (i = 0; i < nowrp; i++)
   {
-    cvCircle(ImageSrc, cvPoint((int)edgerp[i].val[0], (int)edgerp[i].val[1]), 20, CV_RGB(255,65,123), 10);
+    cvCircle(ImageSrc, cvPoint((int)EdgePlace[i].val[0], (int)EdgePlace[i].val[1]), 20, CV_RGB(255,65,123), 10);
   }
 #endif _DEBUG
   return RESULT_OK;
@@ -250,8 +256,8 @@ RESULT CheckMore::WarpImage(void)
 
   for (i = 0; i < 4; i++)
   {
-    srcTri[i].x = (float)edgerp[i].val[0];
-    srcTri[i].y = (float)edgerp[i].val[1];
+    srcTri[i].x = (float)EdgePlace[i].val[0];
+    srcTri[i].y = (float)EdgePlace[i].val[1];
   }
   SortRect(srcTri, 4);
 
@@ -389,7 +395,7 @@ RESULT CheckMore::DetectOneCheck(int order)
 }
 
 #define RATE_LEVEL1       ((float)1.6)
-#define RATE_LEVEL2       ((float)1.1)
+#define RATE_LEVEL2       ((float)1.3)
 #define RATE_LEVEL3       ((float)0.07)
 
 RESULT CheckMore::DetectCheck(int order)
@@ -410,7 +416,7 @@ RESULT CheckMore::DetectCheck(int order)
   if ((ratelevel1 < RATE_LEVEL1 && ratelevel2 > RATE_LEVEL2) || ratelevel3 > RATE_LEVEL3 )
   {
     CheckInfo[order].CheckResult = 'Y';
-    printf ("    is mark !!! for V0.08\r\n");
+    printf ("    is mark !!! for V1.0\r\n");
     //     printf("i:%2d, l1a:%5.0f, l1l:%4.0f, l2c:%1d, l2a:%5.0f, l2l:%4.0f, l3c:%1d, l3a:%3.0f, l3l:%2.0f\r\n",
     //       order, info->area, info->length, info->l2count, info->l2area, info->l2length, info->l3count, info->l3area, info->l3length);
   }
@@ -501,6 +507,7 @@ RESULT CheckMore::GetResult(char* checked)
 RESULT CheckMore::Process(char* filename, char* checkresult, bool display)
 {
   int nook = 0;
+  int i;
   char check[MAX_RECT];
 
 
@@ -524,12 +531,33 @@ RESULT CheckMore::Process(char* filename, char* checkresult, bool display)
     if (DetectOneCheck(i) != RESULT_OK)
       nook ++;
   }
-  for (int i = 0; i < NowCheck; i++)
+  if (nook > 4)
+  {
+    nook = 0;
+    ImageSrc = rotateImage(ImageSrc, 180, true);
+    Image1c = rotateImage(Image1c, 180, true);
+    if (FindMaxRect() != RESULT_OK) 
+      return RESULT_PARA_ERROR;
+
+    if (WarpImage() != RESULT_OK) 
+      return RESULT_PARA_ERROR;
+
+    for (i = 0; i < NowCheck; i++)
+    {
+      if (DetectOneCheck(i) != RESULT_OK)
+        nook ++;
+    }
+    if (nook > 4)
+      return RESULT_ERR;
+  }
+
+  for (i = 0; i < NowCheck; i++)
   {
     DetectCheck(i);
   }
   
   GetResult(check);
+  strncpy(checkresult, check, MAX_RECT);
 
   if (display)
   {
