@@ -342,7 +342,7 @@ RESULT CheckDecode::FIndMaxRect(void)
    double rho=1;  
    double theta=CV_PI/180;  
    double threshold=30;  
-   double min_length=80;//CV_HOUGH_PROBABILISTIC  
+   double min_length=200;//CV_HOUGH_PROBABILISTIC  
    double sepration_connection=4;//CV_HOUGH_PROBABILISTIC  
   
    //binary image is needed.  
@@ -375,8 +375,8 @@ RESULT CheckDecode::FIndMaxRect(void)
           CvSeq*     hull = cvConvexHull2(nowcontour,0,CV_CLOCKWISE,1);  
        for(int i = 0; i < hull -> total; i++) 
         {  
-//            CvPoint *pt = (CvPoint*) cvGetSeqElem(hull, i);  
-//            cvCircle(ImageSrc, *pt, 20, CV_RGB(255,255,255), 10);
+            CvPoint *pt = (CvPoint*) cvGetSeqElem(hull, i);  
+            cvCircle(ImageSrc, *pt, 20, CV_RGB(255,255,255), 10);
 
        }
   //    cvDrawContours(ImageSrc, nowcontour, CV_RGB(0,0,255), CV_RGB(0,255,0), 0, 2, 8);

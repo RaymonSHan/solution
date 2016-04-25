@@ -21,6 +21,9 @@
     <ClCompile Include="checkfinder.cpp">
       <Filter>原始程式檔</Filter>
     </ClCompile>
+    <ClCompile Include="checkmore.cpp">
+      <Filter>原始程式檔</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="checkdll.def">
@@ -32,6 +35,9 @@
       <Filter>標頭檔</Filter>
     </ClInclude>
     <ClInclude Include="checkfinder.h">
+      <Filter>標頭檔</Filter>
+    </ClInclude>
+    <ClInclude Include="checkmore.h">
       <Filter>標頭檔</Filter>
     </ClInclude>
   </ItemGroup>

@@ -34,6 +34,8 @@
 #define     RESULT_WSA_ERROR        1001
 #define     RESULT_DLLLOAD_ERROR    2001
 #define     RESULT_THREAD_ERROR     3001
+#define     RESULT_FILE_ERROR       4001
+#define     RESULT_PARA_ERROR       5001
 #define     RESULT_EMPTY            200001
 
 #define     MARK_NOT_IN_PROCESS			(MYINT)0xa0

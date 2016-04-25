@@ -91,7 +91,7 @@
     </BuildLog>
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>Z:\HostWrite\solution\src\include;Z:\HostWrite\solution\include;Z:\HostWrite\solution\include\jni;Z:\HostWrite\solution\include\OpenCV;Z:\HostWrite\solution\include\OpenCV2;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Z:\solution\src\include;Z:\solution\include;Z:\solution\include\jni;Z:\solution\include\OpenCV;Z:\solution\include\OpenCV2;</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;CHECKDLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -103,7 +103,7 @@
     </ClCompile>
     <Link>
       <OutputFile>c:\output\$(SolutionName)\$(Platform)\$(Configuration)\$(ProjectName).dll</OutputFile>
-      <AdditionalLibraryDirectories>Z:\HostWrite\solution\lib\OpenCV2.4\x86\vc10\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>Z:\solution\lib\OpenCV2.4\x86\vc10\lib</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>checkdll.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -211,6 +211,7 @@
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</CompileAsManaged>
     </ClCompile>
     <ClCompile Include="checkfinder.cpp" />
+    <ClCompile Include="checkmore.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="checkdll.def" />
@@ -218,6 +219,7 @@
   <ItemGroup>
     <ClInclude Include="checkdll.h" />
     <ClInclude Include="checkfinder.h" />
+    <ClInclude Include="checkmore.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

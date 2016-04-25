@@ -15,6 +15,8 @@ int seq_cmp_by_clockwise(const void *_a, const void *_b, void *_cog);
 RESULT SortRect(CvPoint2D32f* point, int number);
 void TranslatePoint(CvPoint2D32f* conner, CvPoint2D32f& result, float a, float b);
 void TranslateRect(CvPoint2D32f* conner, CvRect& result, CvRect source, CvRect paper);
+IplImage* rotateImage(IplImage* src, int angle, bool clockwise);
+
 
 typedef struct ShareInfo
 {
