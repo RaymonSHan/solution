@@ -131,3 +131,44 @@ https://ethereum.github.io/solidity//docs/simple-smart-contract/
 
 * second time, from Apr. 20 '16
 !!! http://ethfans.org/posts/r3-corda-announcement a different blockchain
+
+** 关于概念
+ethereum : 项目名称，分为四个阶段。
+https://blog.ethereum.org/2015/03/03/ethereum-launch-process/
+Frontier, Homestead, Metropolis，Serenity
+Frontier ：完成类比特币网络，实现挖矿，Ether交易，并可提交执行合约。没有友好界面，是为开发者准备的。
+Homestead：于2016.3.14发布，
+Metropolis：完成友好界面，完成DApp store。
+Serenity：使用PoS取代PoW
+
+C++ 路线图
+https://blog.ethereum.org/2016/02/12/ethereum-dev-update-c-roadmap/
+Solidity ：一种合约定义语言
+Mix  ： 合约语言开发调试集成环境
+
+
+good : history of ethereum
+https://blog.ethereum.org/2016/02/09/cut-and-try-building-a-dream/
+privacy
+https://blog.ethereum.org/2016/01/15/privacy-on-the-blockchain/
+scalability
+https://blog.ethereum.org/2015/04/05/blockchain-scalability-chain-fibers-redux/
+
+** install step 
+http://consensys.github.io/developers/articles/101-noob-intro/
+http://ethfans.org/posts/101-noob-intro chinese version
+
+** solidity step
+https://solidity.readthedocs.org/en/latest/introduction-to-smart-contracts.html
+http://ethfans.org/posts/solidity-chapter1-introduciton-to-smart-contracts chinese version
+
+sudo apt-add-repository ppa:george-edison55/cmake-3.x
+
+sudo apt-get -y update
+sudo apt-get -y install language-pack-en-base
+sudo dpkg-reconfigure locales
+sudo apt-get -y install software-properties-common
+sudo add-apt-repository -y ppa:ethereum/ethereum
+sudo add-apt-repository -y ppa:ethereum/ethereum-dev
+sudo apt-get -y update
+sudo apt-get -y upgrade
