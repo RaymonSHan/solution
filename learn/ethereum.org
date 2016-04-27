@@ -154,21 +154,76 @@ https://blog.ethereum.org/2016/01/15/privacy-on-the-blockchain/
 scalability
 https://blog.ethereum.org/2015/04/05/blockchain-scalability-chain-fibers-redux/
 
-** install step 
+** install cpp-ethereum
+now it is more easy than frontier
+http://www.ethdocs.org/en/latest/ethereum-clients/cpp-ethereum/installing-binaries/linux-ubuntu-ppa.html
+sudo add-apt-repository ppa:ethereum/ethereum-qt
+sudo add-apt-repository ppa:ethereum/ethereum
+sudo apt-get update
+sudo apt-get install cpp-ethereum
+
+** install geth
+https://github.com/ethereum/go-ethereum/wiki/Building-Ethereum
+bash <(curl -L https://install-geth.ethereum.org)  
+
+** install private chain
+http://adeduke.com/2015/08/how-to-create-a-private-ethereum-chain/
+https://github.com/ethereum/go-ethereum/wiki/Setting-up-private-network-or-local-cluster
+
+*** create genesis file
+{
+	"nonce": "0xdeadbeefdeadbeef",
+	"timestamp": "0x0",
+	"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+	"extraData": "0x0",
+	"gasLimit": "0x8000000",
+	"difficulty": "0x400",
+	"mixhash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+	"coinbase": "0x3333333333333333333333333333333333333333",
+	"alloc": {
+	}
+}
+*** test this
+for first time:
+geth --genesis ~/chain/genesis.json --datadir ~/chain --networkid 123 --nodiscover console
+continue:
+geth --datadir ~/chain --networkid 123 --nodiscover console
+
+create account
+> personal.newAccount("mypassword");
+account store in keystore subdirctory
+
+*** re create genesis
+	"alloc": {
+		"0xf000a11d4ef5c9102602dac2e3e8847721ed0a00": {"balance": "10000000000000000000"},
+		"0xb330810b4ed4873ce5ddbc1f8cd293dcaf323986": {"balance": "20000000000000000000"},
+		"0xc4cd889d7eb29b62fa2a9c1fcbc74c9072fd68a7": {"balance": "30000000000000000000"},
+		"0x09f5227665006c443eeb021bdc6160847a0ee875": {"balance": "40000000000000000000"},
+		"0x12e451bab397faa7bb06765dd7246a350db78346": {"balance": "50000000000000000000"},
+		"0x0de186c08d271983d9fec28a3671046453ab3b49": {"balance": "60000000000000000000"},
+		"0x5c55f5f940a0d58f7530e41f9aea8b5c8fe9f39f": {"balance": "70000000000000000000"},
+		"0x953cf8374d3e24fec454e9a33948448e07637831": {"balance": "80000000000000000000"},
+		"0x71c4e98a934f47ec33d639f91bad0a6bf8f930d8": {"balance": "90000000000000000000"},
+		"0x5c1229c1d7740b042d57bdc1ef803e740a9b3cd5": {"balance": "100000000000000000000"},
+	}
+run genesis again, delete all file but keystore subdir.
+~/chain$ rm -rf `ls | grep -v keystore`
+
+*** verity account
+> primary = eth.accounts[0];
+> balance = web3.fromWei(eth.getBalance(primary), "ether");
+
+*** test private chain, this is OK for Apr. 29 '16
+geth --datadir="~/01" -verbosity 6 --ipcdisable --port 30301 --rpcport 8101 console 2>> ~/02.log
+geth --datadir="~/02" -verbosity 6 --ipcdisable --port 30302 --rpcport 8102 console 2>> ~/02.log
+admin.addPeer("enode://5a58b99bc3149ad8b7b8d3ba7774a57dff083e5a019bd721cbe29f9800368195bc80dae63ef539209ec97d1e234d0ecaa21e9c9dc6eab42a596f03a515853f13@[::]:30301")
+
+but the two sample have not together
+
+** develop step
 http://consensys.github.io/developers/articles/101-noob-intro/
 http://ethfans.org/posts/101-noob-intro chinese version
 
 ** solidity step
 https://solidity.readthedocs.org/en/latest/introduction-to-smart-contracts.html
 http://ethfans.org/posts/solidity-chapter1-introduciton-to-smart-contracts chinese version
-
-sudo apt-add-repository ppa:george-edison55/cmake-3.x
-
-sudo apt-get -y update
-sudo apt-get -y install language-pack-en-base
-sudo dpkg-reconfigure locales
-sudo apt-get -y install software-properties-common
-sudo add-apt-repository -y ppa:ethereum/ethereum
-sudo add-apt-repository -y ppa:ethereum/ethereum-dev
-sudo apt-get -y update
-sudo apt-get -y upgrade
