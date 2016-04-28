@@ -137,7 +137,7 @@ ethereum : 项目名称，分为四个阶段。
 https://blog.ethereum.org/2015/03/03/ethereum-launch-process/
 Frontier, Homestead, Metropolis，Serenity
 Frontier ：完成类比特币网络，实现挖矿，Ether交易，并可提交执行合约。没有友好界面，是为开发者准备的。
-Homestead：于2016.3.14发布，
+Homestead：
 Metropolis：完成友好界面，完成DApp store。
 Serenity：使用PoS取代PoW
 
@@ -214,11 +214,21 @@ run genesis again, delete all file but keystore subdir.
 > balance = web3.fromWei(eth.getBalance(primary), "ether");
 
 *** test private chain, this is OK for Apr. 29 '16
-geth --datadir="~/01" -verbosity 6 --ipcdisable --port 30301 --rpcport 8101 console 2>> ~/02.log
+geth --datadir="~/01" -verbosity 6 --ipcdisable --port 30301 --rpcport 8101 console 2>> ~/01.log
 geth --datadir="~/02" -verbosity 6 --ipcdisable --port 30302 --rpcport 8102 console 2>> ~/02.log
-admin.addPeer("enode://5a58b99bc3149ad8b7b8d3ba7774a57dff083e5a019bd721cbe29f9800368195bc80dae63ef539209ec97d1e234d0ecaa21e9c9dc6eab42a596f03a515853f13@[::]:30301")
 
-but the two sample have not together
+> admin.nodeInfo.enode
+> admin.addPeer("enode://5a58b99bc3149ad8b7b8d3ba7774a57dff083e5a019bd721cbe29f9800368195bc80dae63ef539209ec97d1e234d0ecaa21e9c9dc6eab42a596f03a515853f13@[::]:30301")
+
+geth --datadir="~/01" --ipcdisable --port 30301 --rpcport 8101 --networkid 123 --nodiscover console 2
+geth --datadir="~/02" --ipcdisable --port 30302 --rpcport 8102 --networkid 123 --nodiscover console 2
+
+geth --genesis ~/chain/genesis.json --datadir="~/chain" -verbosity 6 --ipcdisable --port 30301 --rpcport 8101 --networkid 6723 --nodiscover console 2
+geth --genesis ~/chain/genesis.json --datadir="~/chain1" -verbosity 6 --ipcdisable --port 30302 --rpcport 8102 --networkid 6723 --nodiscover console 2
+> admin.nodeInfo.enode
+> admin.addPeer("enode://a6c751f98177988cfee05c59bbf45825d3dc70672c126ef4f85addb9761c0c235c8b7d50c321c7785fe1d61e8f3d5f7d3da782f9cce45118cddabd9def364105@[::]:30301")
+> admin.addPeer("enode://a6c751f98177988cfee05c59bbf45825d3dc70672c126ef4f85addb9761c0c235c8b7d50c321c7785fe1d61e8f3d5f7d3da782f9cce45118cddabd9def364105@[192.168.206.143]:30301")
+
 
 ** develop step
 http://consensys.github.io/developers/articles/101-noob-intro/
