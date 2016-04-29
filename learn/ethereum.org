@@ -183,17 +183,20 @@ https://github.com/ethereum/go-ethereum/wiki/Setting-up-private-network-or-local
 	"alloc": {
 	}
 }
-*** test this
-for first time:
-geth --genesis ~/chain/genesis.json --datadir ~/chain --networkid 123 --nodiscover console
-continue:
-geth --datadir ~/chain --networkid 123 --nodiscover console
 
-create account
+*** init chain in every computer you need
+$ geth  --datadir="~/chain" init ~/chain/genesis.json console 2
+
+*** begin chain
+$ geth  --datadir="~/chain" --verbosity 6 --ipcdisable --port 30303 --rpcport 8545 --networkid 6723 --nodiscover console 2
+  verbosity 6 is important, for display more debug info.
+  every node in chain, MUST have SAME networkid
+
+*** add accounts
 > personal.newAccount("mypassword");
-account store in keystore subdirctory
+  here "mypassword" is VERY IMPORTANT, you will lost your account without this password.
 
-*** re create genesis
+*** add account balance in genesis (options)
 	"alloc": {
 		"0xf000a11d4ef5c9102602dac2e3e8847721ed0a00": {"balance": "10000000000000000000"},
 		"0xb330810b4ed4873ce5ddbc1f8cd293dcaf323986": {"balance": "20000000000000000000"},
@@ -204,30 +207,42 @@ account store in keystore subdirctory
 		"0x5c55f5f940a0d58f7530e41f9aea8b5c8fe9f39f": {"balance": "70000000000000000000"},
 		"0x953cf8374d3e24fec454e9a33948448e07637831": {"balance": "80000000000000000000"},
 		"0x71c4e98a934f47ec33d639f91bad0a6bf8f930d8": {"balance": "90000000000000000000"},
-		"0x5c1229c1d7740b042d57bdc1ef803e740a9b3cd5": {"balance": "100000000000000000000"},
+		"0x5c1229c1d7740b042d57bdc1ef803e740a9b3cd5": {"balance": "100000000000000000000"}
 	}
-run genesis again, delete all file but keystore subdir.
-~/chain$ rm -rf `ls | grep -v keystore`
+  if you changed genesis.json, every node MUST reinit, every node in chain, MUST have SAME genesis file
 
-*** verity account
+*** verity account balance
 > primary = eth.accounts[0];
 > balance = web3.fromWei(eth.getBalance(primary), "ether");
+  if you change balance in genesis, here is the result, otherwise, return 0
 
-*** test private chain, this is OK for Apr. 29 '16
-geth --datadir="~/01" -verbosity 6 --ipcdisable --port 30301 --rpcport 8101 console 2>> ~/01.log
-geth --datadir="~/02" -verbosity 6 --ipcdisable --port 30302 --rpcport 8102 console 2>> ~/02.log
-
+*** get enode in one node
 > admin.nodeInfo.enode
-> admin.addPeer("enode://5a58b99bc3149ad8b7b8d3ba7774a57dff083e5a019bd721cbe29f9800368195bc80dae63ef539209ec97d1e234d0ecaa21e9c9dc6eab42a596f03a515853f13@[::]:30301")
+  result like this
+  "enode://5a58b99bc3149ad8b7b8d3ba7774a57dff083e5a019bd721cbe29f9800368195bc80dae63ef539209ec97d1e234d0ecaa21e9c9dc6eab42a596f03a515853f13@[::]:30303"
 
-geth --datadir="~/01" --ipcdisable --port 30301 --rpcport 8101 --networkid 123 --nodiscover console 2
-geth --datadir="~/02" --ipcdisable --port 30302 --rpcport 8102 --networkid 123 --nodiscover console 2
+*** add peer in all other node
+> admin.addPeer("enode://5a58b99bc3149ad8b7b8d3ba7774a57dff083e5a019bd721cbe29f9800368195bc80dae63ef539209ec97d1e234d0ecaa21e9c9dc6eab42a596f03a515853f13@[192.168.1.42]:30303")
+  replace [::] with first node address
 
-geth --genesis ~/chain/genesis.json --datadir="~/chain" -verbosity 6 --ipcdisable --port 30301 --rpcport 8101 --networkid 6723 --nodiscover console 2
-geth --genesis ~/chain/genesis.json --datadir="~/chain1" -verbosity 6 --ipcdisable --port 30302 --rpcport 8102 --networkid 6723 --nodiscover console 2
-> admin.nodeInfo.enode
-> admin.addPeer("enode://a6c751f98177988cfee05c59bbf45825d3dc70672c126ef4f85addb9761c0c235c8b7d50c321c7785fe1d61e8f3d5f7d3da782f9cce45118cddabd9def364105@[::]:30301")
-> admin.addPeer("enode://a6c751f98177988cfee05c59bbf45825d3dc70672c126ef4f85addb9761c0c235c8b7d50c321c7785fe1d61e8f3d5f7d3da782f9cce45118cddabd9def364105@[192.168.206.143]:30301")
+*** miner
+> miner.start();
+  you MUST add account for node, before miner, 
+
+> miner.setEtherbase(eth.accounts[2]);
+  and can change miner account
+
+> miner.stop();
+  only few second after miner, you will have enough ether for test.
+
+*** transaction
+> personal.unlockAccount("0x5c9e2e6690afddf5742bf77a91311680c964d0c2", "mypassword");
+  unlock account use password
+
+> eth.sendTransaction({from: '0x5c9e2e6690afddf5742bf77a91311680c964d0c2', to: '0x8f715c1093536f6608403721500adaa5032a026c', value: web3.toWei(1, "ether")});
+  transaction
+> balance = web3.fromWei(eth.getBalance("0x5c9e2e6690afddf5742bf77a91311680c964d0c2"), "ether");
+  verity balance
 
 
 ** develop step
