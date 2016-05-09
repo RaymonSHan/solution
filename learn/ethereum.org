@@ -244,6 +244,52 @@ $ geth  --datadir="~/chain" --verbosity 6 --ipcdisable --port 30303 --rpcport 85
 > balance = web3.fromWei(eth.getBalance("0x5c9e2e6690afddf5742bf77a91311680c964d0c2"), "ether");
   verity balance
 
+** install truffle
+*** g++
+sudo apt-get install g++
+
+*** nodejs
+https://nodejs.org/en/download/ download source
+./configure
+make
+sudo make install
+
+*** install truffle
+sudo apt-get install npm
+sudo npm install -g npm
+sudo npm install -g truffle
+truffle list                                           # verity
+
+*** test truffle
+mkdir contract
+cd contract
+truffle init
+
+*** first test
+mkdir slabhra
+cd slabhra
+truffle init
+git init
+(in console2) testrpc
+truffle compile
+truffle deploy                                         # compile and deploy
+truffle build
+truffle test
+
+*** configure
+config/app.json                                        # default config
+....../config.json                                     # user costom
+
+
+** install mist
+https://github.com/ethereum/mist
+$ curl https://install.meteor.com/ | sh
+$ npm install -g electron-prebuilt
+
+$ git clone https://github.com/ethereum/mist.git
+$ cd mist
+$ git submodule update --init
+$ npm install
 
 ** develop step
 http://consensys.github.io/developers/articles/101-noob-intro/
@@ -252,3 +298,13 @@ http://ethfans.org/posts/101-noob-intro chinese version
 ** solidity step
 https://solidity.readthedocs.org/en/latest/introduction-to-smart-contracts.html
 http://ethfans.org/posts/solidity-chapter1-introduciton-to-smart-contracts chinese version
+
+* useful
+start : geth  --datadir="~/chain" --verbosity 6 --ipcdisable --port 30303 --rpc --rpcaddr 0.0.0.0 --rpcport 8545 --networkid 6723 --nodiscover console 2
+enode :  admin.nodeInfo.enode
+  "enode://a6c751f98177988cfee05c59bbf45825d3dc70672c126ef4f85addb9761c0c235c8b7d50c321c7785fe1d61e8f3d5f7d3da782f9cce45118cddabd9def364105@[10.0.48.112]:30303?discport=0"
+
+
+http://www.wanbizu.com/baike/201602126543.html modity ethereum source for costom
+
+
