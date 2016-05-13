@@ -299,12 +299,74 @@ http://ethfans.org/posts/101-noob-intro chinese version
 https://solidity.readthedocs.org/en/latest/introduction-to-smart-contracts.html
 http://ethfans.org/posts/solidity-chapter1-introduciton-to-smart-contracts chinese version
 
+* install again
+** install cpp-ethereum
+now it is more easy than frontier
+http://www.ethdocs.org/en/latest/ethereum-clients/cpp-ethereum/installing-binaries/linux-ubuntu-ppa.html
+sudo add-apt-repository ppa:ethereum/ethereum-qt
+sudo add-apt-repository ppa:ethereum/ethereum
+sudo apt-get update
+sudo apt-get install cpp-ethereum
+
+** install geth
+https://github.com/ethereum/go-ethereum/wiki/Building-Ethereum
+bash <(curl -L https://install-geth.ethereum.org)  
+
+** install private chain
+http://adeduke.com/2015/08/how-to-create-a-private-ethereum-chain/
+https://github.com/ethereum/go-ethereum/wiki/Setting-up-private-network-or-local-cluster
+
+*** create genesis file
+{
+	"nonce": "0xdeadbeefdeadbeef",
+	"timestamp": "0x0",
+	"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+	"extraData": "0x0",
+	"gasLimit": "0x8000000",
+	"difficulty": "0x400",
+	"mixhash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+	"coinbase": "0x3333333333333333333333333333333333333333",
+	"alloc": {
+	}
+}
+
+*** init and start geth
+geth init ~/.ethereum/genesis.json console 2
+geth --datadir ~/chain --verbosity 6 --port 30300 --rpc --rpcaddr 0.0.0.0 --rpcport 8540 --networkid 6723 --nodiscover console 2
+
+personal.newAccount("mypassword");
+personal.unlockAccount(eth.accounts[0], "mypassword");
+miner.start();
+
+
+
+
+
+
+
+
 * useful
-start : geth  --datadir="~/chain" --verbosity 6 --ipcdisable --port 30303 --rpc --rpcaddr 0.0.0.0 --rpcport 8545 --networkid 6723 --nodiscover console 2
+start : geth  --verbosity 6 --port 30303  --rpc --rpcaddr 0.0.0.0 --rpcport 8555 --networkid 6723 --nodiscover console 2    // 8545 for alethzero
 enode :  admin.nodeInfo.enode
   "enode://a6c751f98177988cfee05c59bbf45825d3dc70672c126ef4f85addb9761c0c235c8b7d50c321c7785fe1d61e8f3d5f7d3da782f9cce45118cddabd9def364105@[10.0.48.112]:30303?discport=0"
-
+web3.debug.verbosity(2);
 
 http://www.wanbizu.com/baike/201602126543.html modity ethereum source for costom
+http://ethfans.org/topics/118 use of mist
+https://github.com/ethereum/wiki/wiki/FAQ#where-can-i-learn-about-contract-development FAQ
+https://github.com/ethereum/go-ethereum/wiki/Contract-Tutorial as name
 
 
+ --rpccorsdomain "http://localhost:3000"  --jspath "/home/raymon/solution/sr"		
+
+ personal.unlockAccount(eth.accounts[0], "mypassword");
+ --rpccorsdomain "http://localhost:3000"
+
+
+{
+ "Sample": "0x31dc4648c96f2ce2754064434a701124c202703b",
+ "<Sample - 0>": "0x31dc4648c96f2ce2754064434a701124c202703b"
+}
+
+geth init ~/.ethereum/genesis.json console 2
+geth --verbosity 6 --port 30303 --rpc --rpcaddr 0.0.0.0 --rpcport 8545 --networkid 6723 --nodiscover console 2
