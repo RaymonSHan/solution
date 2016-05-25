@@ -360,13 +360,23 @@ meteor create myDapp
 cd myDapp
 meteor add ethereum:web3
 
+create lib/init.js
 
+*** page web
+npm install -g meteor-build-client
+cd myDapp
+meteor-build-client ../build --path ""
 
+** install mist
+https://github.com/ethereum/mist
+down and unzip
 
+*** step of mist
+http://ethfans.org/topics/118 use of mist
 
 
 * useful
-start : geth  --verbosity 6 --port 30303  --rpc --rpcaddr 0.0.0.0 --rpcport 8555 --networkid 6723 --nodiscover console 2    // 8545 for alethzero
+start : geth   --rpc  --rpccorsdomain "http://localhost:3000" --networkid 6723 --nodiscover console 2
 enode :  admin.nodeInfo.enode
   "enode://a6c751f98177988cfee05c59bbf45825d3dc70672c126ef4f85addb9761c0c235c8b7d50c321c7785fe1d61e8f3d5f7d3da782f9cce45118cddabd9def364105@[10.0.48.112]:30303?discport=0"
 web3.debug.verbosity(2);
@@ -389,4 +399,10 @@ https://github.com/ethereum/go-ethereum/wiki/Contract-Tutorial as name
 }
 
 geth init ~/.ethereum/genesis.json console 2
-geth --verbosity 6 --port 30303 --rpc --rpcaddr 0.0.0.0 --rpcport 8545 --networkid 6723 --nodiscover console 2
+geth --verbosity 6 --port 30303 --rpc --rpccorsdomain "*" --rpcaddr 0.0.0.0 --rpcport 8545 --networkid 6723 --nodiscover console 2
+export PATH=$PATH:/home/raymon/meteor
+
+http://robmyers.org/2016/01/26/ethereum-truffle-meteor/
+
+
+export TESSDATA_PREFIX=/home/raymon/tesseract-master

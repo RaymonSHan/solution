@@ -1,0 +1,4 @@
+LIBRARY	"TechOcrDll"
+
+EXPORTS
+  TechOcr													@1
