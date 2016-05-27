@@ -3,13 +3,13 @@
 #include "windows.h"
 
 #ifdef WIN64
-#define     MYINT						        __int64
+#define     MYINT					__int64
 #define     RESULT                  __int64
-#define     InterExgAdd				      InterlockedExchangeAdd64
-#define     InterCmpExg	     			  InterlockedCompareExchange64
-#define     InterExg				     	  InterlockedExchange64
-#define     InterDec			     		  InterlockedDecrement64
-#define     InterInc					      InterlockedIncrement64
+#define     InterExgAdd				InterlockedExchangeAdd64
+#define     InterCmpExg	     		InterlockedCompareExchange64
+#define     InterExg				InterlockedExchange64
+#define     InterDec			    InterlockedDecrement64
+#define     InterInc				InterlockedIncrement64
 #else WIN64
 #define     MYINT						        long
 #define     RESULT  		            long
