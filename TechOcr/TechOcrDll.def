@@ -3,3 +3,4 @@ LIBRARY	"TechOcrDll"
 EXPORTS
   TechOcr													@1
   Java_net_gbicc_xbrl_otc_util_ImageScanForC_TechOcr		@2
+  OcrTest                                                   @3
