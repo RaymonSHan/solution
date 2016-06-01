@@ -202,6 +202,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ImageCommon.cpp" />
+    <ClCompile Include="PocTest.cpp" />
     <ClCompile Include="TechOcrDll.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </PrecompiledHeader>
