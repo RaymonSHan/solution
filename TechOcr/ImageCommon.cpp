@@ -73,6 +73,57 @@ IplImage* trCloneImg1c(IplImage *src) {
 	return img1c;
 }
 
+IplImage* trRotateImage(IplImage* src, int angle, bool clockwise) {
+	IplImage *dst = NULL, *temp;
+	int anglecalc;
+	int width, height;
+	int templength, tempx, tempy;
+	int flag = -1;
+
+	CvMat M;
+	float m[6];
+	int w, h;
+
+	angle = angle % 360;
+	anglecalc = abs(angle) % 180;
+	if (anglecalc > 90)	{
+		anglecalc = 90 - (anglecalc % 90);
+	}
+	width =	(int)(sin(anglecalc * CV_PI / 180.0) * src->height) +
+			(int)(cos(anglecalc * CV_PI / 180.0) * src->width) + 1;
+	height = (int)(cos(anglecalc * CV_PI / 180.0) * src->height) +
+			 (int)(sin(anglecalc * CV_PI / 180.0) * src->width) + 1;
+	templength = (int)sqrt((double)src->width * src->width + src->height * src->height) + 10;
+	tempx = (templength + 1) / 2 - src->width / 2;
+	tempy = (templength + 1) / 2 - src->height / 2;
+
+	dst = cvCreateImage(cvSize(width, height), src->depth, src->nChannels);
+	cvZero(dst);
+	temp = cvCreateImage(cvSize(templength, templength), src->depth, src->nChannels);
+	cvZero(temp);
+
+	cvSetImageROI(temp, cvRect(tempx, tempy, src->width, src->height));
+	cvCopy(src, temp, NULL);
+	cvResetImageROI(temp);
+
+	if (clockwise)
+		flag = 1;
+
+	w = temp->width;
+	h = temp->height;
+	m[0] = (float)cos(flag * angle * CV_PI / 180.);
+	m[1] = (float)sin(flag * angle * CV_PI / 180.);
+	m[3] = -m[1];
+	m[4] = m[0];
+	m[2] = w * 0.5f;
+	m[5] = h * 0.5f;
+
+	M = cvMat(2, 3, CV_32F, m);
+	cvGetQuadrangleSubPix(temp, dst, &M);
+	cvReleaseImage(&temp);
+	return dst;
+};
+
 CvSeq* trCreateHoughLines(IplImage *src, CvMemStorage* storage) {
 // here src MUST be one channel
 //	CvMemStorage* storage = cvCreateMemStorage(0);
@@ -82,7 +133,7 @@ CvSeq* trCreateHoughLines(IplImage *src, CvMemStorage* storage) {
 // 	double threshold = 30;
 // 	double min_length = 200;//CV_HOUGH_PROBABILISTIC  
 // 	double sepration_connection = 4;//CV_HOUGH_PROBABILISTIC  
-	double theta = CV_PI  / 180;
+	double theta = 2*CV_PI  / 180;
 // 	double threshold = 100;
 // 	double min_length = 150;//CV_HOUGH_PROBABILISTIC  
 // 	double sepration_connection = 40;//CV_HOUGH_PROBABILISTIC  

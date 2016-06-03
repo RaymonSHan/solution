@@ -34,6 +34,7 @@ Pix* trPixCreateFromIplImage(IplImage *img);
 
 // following function is major for opencv
 IplImage* trCloneImg1c(IplImage *src);
+IplImage* trRotateImage(IplImage* src, int angle, bool clockwise);
 CvSeq* trCreateHoughLines(IplImage *src, CvMemStorage* storage);
 
 // following function is major for tesseract
@@ -44,7 +45,7 @@ void trExitTessAPI(tesseract::TessBaseAPI *api);
 // following function is declare outside
 void trDrawBoxs(IplImage *img, Boxa *boxa, CvScalar *color = &DEFALUT_COLOR, int width = DEFAULT_WIDTH);
 void trDrawLines(IplImage *img, CvSeq *lines, bool drawpoint, 
-	CvScalar *color = &DEFALUT_COLOR, int width = DEFAULT_WIDTH, CvScalar *pointcolor = &DEFALUT_POINT_COLOR);
+	CvScalar *color = &DEFALUT_POINT_COLOR, int width = DEFAULT_WIDTH, CvScalar *pointcolor = &DEFALUT_POINT_COLOR);
 void trShowImage(char *name, IplImage *img, 
 	Boxa *boxa = NULL, CvScalar *color = &DEFALUT_COLOR, int width = DEFAULT_WIDTH);
 

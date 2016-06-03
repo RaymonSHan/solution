@@ -19,8 +19,21 @@ void pocPixCreateFromIplImage(char *src, char *dst) {
 //	pixDestroy(&pixs);
 }
 
+void pocRotateImage(char* src, int angle, bool clockwise) {
+	IplImage *img, *dst;
+	img = cvLoadImage(src, 1);
+	if (!img) {
+		return;
+	}
+	dst = trRotateImage(img, 90, false);
+	cvSaveImage(src, dst);
+
+	trShowImage("dst", dst);
+	cvWaitKey();
+}
+
 void pocShowImage(char *src) {
-	IplImage *img, *img1c;
+	IplImage *img, *img1c;//, *imgerode;
 	CvMemStorage* storage;
 	CvSeq *lines;
 
@@ -35,26 +48,33 @@ void pocShowImage(char *src) {
 	}
 
 	img1c = trCloneImg1c(img);
-	storage = cvCreateMemStorage(0);
-	lines = trCreateHoughLines(img1c, storage);
+//	imgerode = cvCreateImage(cvSize(img->width, img->height), img->depth, img->nChannels);
+// 	storage = cvCreateMemStorage(0);
+// 	lines = trCreateHoughLines(img1c, storage);
 	// lines will be free by cvReleaseMemStorage(&storage);
-	trDrawLines(img, lines, true);
 
-// 	pix = trPixCreateFromIplImage(img);
-// 	api = trInitTessAPI();
-// 	api->SetImage(pix);
-// 	boxa = api->GetWords(&pixa);
-// 	trDrawBoxs(img, boxa);
 
+//	cvErode(img1c, img1c, NULL, 8);		// enlarge
+	cvDilate(img1c, img1c, NULL, 8);
+
+	pix = trPixCreateFromIplImage(img1c);
+	api = trInitTessAPI();
+	api->SetImage(pix);
+	boxa = api->GetConnectedComponents(&pixa);
+
+// 	trDrawLines(img, lines, true);
+	trDrawBoxs(img, boxa);
 	trShowImage("src", img);
 	trShowImage("1c", img1c);
 	cvWaitKey();
 
-// 	trExitTessAPI(api);
-// 	pixDestroy(&pix);
+	trExitTessAPI(api);
+	pixDestroy(&pix);
 
-	cvReleaseMemStorage(&storage);
+// 	cvReleaseMemStorage(&storage);
 	cvReleaseImage(&img1c);
+//	cvReleaseImage(&imgerode);
+
 
 	cvReleaseImage(&img);
 }
