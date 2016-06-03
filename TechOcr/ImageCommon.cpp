@@ -13,7 +13,7 @@ Pix* trPixCreateFromIplImage(IplImage *img) {
 	l_uint32 *pstart, *px;
 
 // only supply 8 bit gray and 24 bit color image now.
-	if (!img || img->depth != 8 || (img->nChannels != 1 && img->nChannels != 3)) {
+	if (!img || img->depth != IPL_DEPTH_8U || (img->nChannels != 1 && img->nChannels != 3)) {
 		return NULL;
 	}
 	pix = pixCreateNoInit(img->width, img->height, img->nChannels == 1 ? 8 : 32);
@@ -57,6 +57,10 @@ Pix* trPixCreateFromIplImage(IplImage *img) {
 IplImage* trCloneImg1c(IplImage *src) {
 // get the one channel gray image of the source
 	IplImage	*img1c;
+
+	if (!src) {
+		return NULL;
+	}
 	img1c = cvCreateImage(cvSize(src->width, src->height), IPL_DEPTH_8U, 1);
 	if (src->nChannels > 1) {
 		cvCvtColor(src, img1c, CV_BGR2GRAY);
@@ -65,15 +69,14 @@ IplImage* trCloneImg1c(IplImage *src) {
 		cvCopy(src, img1c);
 	}
 
-//	if (gaussian)
-		cvSmooth(img1c, img1c, CV_GAUSSIAN, 3, 3);
-	cvAdaptiveThreshold(img1c, img1c, 128, CV_ADAPTIVE_THRESH_MEAN_C,
-		CV_THRESH_BINARY_INV, DEFAULT_ADAPTIVE_TH_SIZE, DEFAULT_ADAPTIVE_TH_DELTA);
-
+// 	if (gaussian)
+// 		cvSmooth(img1c, img1c, CV_GAUSSIAN, 3, 3);
+// 	cvAdaptiveThreshold(img1c, img1c, 128, CV_ADAPTIVE_THRESH_MEAN_C,
+// 		CV_THRESH_BINARY_INV, DEFAULT_ADAPTIVE_TH_SIZE, DEFAULT_ADAPTIVE_TH_DELTA);	
 	return img1c;
 }
 
-IplImage* trRotateImage(IplImage* src, int angle, bool clockwise) {
+IplImage* trRotateImage(IplImage *src, int angle, bool clockwise) {
 	IplImage *dst = NULL, *temp;
 	int anglecalc;
 	int width, height;
@@ -124,7 +127,55 @@ IplImage* trRotateImage(IplImage* src, int angle, bool clockwise) {
 	return dst;
 };
 
-CvSeq* trCreateHoughLines(IplImage *src, CvMemStorage* storage) {
+#define MAX_CONTOUR_RATE	0.002
+
+IplImage* trCreateMaxContour(IplImage *src, CvMemStorage *storage) {
+// src can be 8 or 24 bit, return image is 8 bit
+	CvSeq *conts;
+	CvSeq *nowcont;
+	IplImage *img1c, *dst;
+	CvMemStorage *nowstore;
+	double arearate, area;
+
+	if (!src) {
+		return NULL;
+	}
+	if (!storage) {
+		nowstore = cvCreateMemStorage(0);
+	}
+	else {
+		nowstore = storage;
+	}
+	conts = cvCreateSeq(CV_SEQ_ELTYPE_POINT, sizeof(CvSeq), sizeof(CvPoint), nowstore);
+
+	img1c = trCloneImg1c(src);
+	cvSmooth(img1c, img1c, CV_GAUSSIAN, 3, 3);
+	cvAdaptiveThreshold(img1c, img1c, 128, CV_ADAPTIVE_THRESH_MEAN_C,
+		CV_THRESH_BINARY_INV, DEFAULT_ADAPTIVE_TH_SIZE, DEFAULT_ADAPTIVE_TH_DELTA);	dst = cvCreateImage(cvSize(src->width, src->height), IPL_DEPTH_8U, 1);
+	cvZero(dst);
+
+	cvFindContours(img1c, nowstore, &conts, sizeof(CvContour),
+		CV_RETR_TREE, CV_CHAIN_APPROX_NONE, cvPoint(0, 0));
+
+	arearate = src->width * src->height * MAX_CONTOUR_RATE;
+	for (nowcont = conts; nowcont; nowcont = nowcont->h_next) {
+		area = fabs(cvContourArea(nowcont));
+		if (area > arearate) {
+			cvDrawContours(dst, nowcont, CV_RGB(255,255,255), CV_RGB(255, 255, 255), 0, DEFAULT_WIDTH);
+		}
+	}
+	for (nowcont = conts; nowcont; nowcont = nowcont->h_next) {
+		cvClearSeq(nowcont);
+	}
+	cvReleaseImage(&img1c);
+	if (!storage) {
+		cvReleaseMemStorage(&nowstore);
+	}
+
+	return dst;
+}
+
+CvSeq* trCreateHoughLines(IplImage *src, CvMemStorage *storage) {
 // here src MUST be one channel
 //	CvMemStorage* storage = cvCreateMemStorage(0);
 	CvSeq* lines = 0;

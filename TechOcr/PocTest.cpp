@@ -19,7 +19,7 @@ void pocPixCreateFromIplImage(char *src, char *dst) {
 //	pixDestroy(&pixs);
 }
 
-void pocRotateImage(char* src, int angle, bool clockwise) {
+void pocRotateImage(char *src, int angle, bool clockwise) {
 	IplImage *img, *dst;
 	img = cvLoadImage(src, 1);
 	if (!img) {
@@ -28,6 +28,16 @@ void pocRotateImage(char* src, int angle, bool clockwise) {
 	dst = trRotateImage(img, 90, false);
 	cvSaveImage(src, dst);
 
+	trShowImage("dst", dst);
+	cvWaitKey();
+}
+
+void pocFindMaxRect(char *src) {
+	IplImage *img, *dst;
+
+	img = cvLoadImage(src, 1);     // 1 for is colored
+	dst = trCreateMaxContour(img);
+	trShowImage("src", img);
 	trShowImage("dst", dst);
 	cvWaitKey();
 }
@@ -47,15 +57,18 @@ void pocShowImage(char *src) {
 		return;
 	}
 
-	img1c = trCloneImg1c(img);
 //	imgerode = cvCreateImage(cvSize(img->width, img->height), img->depth, img->nChannels);
 // 	storage = cvCreateMemStorage(0);
 // 	lines = trCreateHoughLines(img1c, storage);
 	// lines will be free by cvReleaseMemStorage(&storage);
 
 
-//	cvErode(img1c, img1c, NULL, 8);		// enlarge
-	cvDilate(img1c, img1c, NULL, 8);
+	IplConvKernel *ck = cvCreateStructuringElementEx(13, 1, 0, 0, CV_SHAPE_CROSS);
+	cvErode(img, img, ck, 1);		// enlarge
+	cvDilate(img, img, ck, 1);
+
+	cvReleaseStructuringElement(&ck);
+	img1c = trCloneImg1c(img);
 
 	pix = trPixCreateFromIplImage(img1c);
 	api = trInitTessAPI();

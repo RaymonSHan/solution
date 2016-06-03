@@ -35,7 +35,8 @@ Pix* trPixCreateFromIplImage(IplImage *img);
 // following function is major for opencv
 IplImage* trCloneImg1c(IplImage *src);
 IplImage* trRotateImage(IplImage* src, int angle, bool clockwise);
-CvSeq* trCreateHoughLines(IplImage *src, CvMemStorage* storage);
+IplImage* trCreateMaxContour(IplImage *src, CvMemStorage *storage = NULL);
+CvSeq* trCreateHoughLines(IplImage *src, CvMemStorage *storage);
 
 // following function is major for tesseract
 tesseract::TessBaseAPI* trInitTessAPI(void);
@@ -50,7 +51,4 @@ void trShowImage(char *name, IplImage *img,
 	Boxa *boxa = NULL, CvScalar *color = &DEFALUT_COLOR, int width = DEFAULT_WIDTH);
 
 
-// should read 
-// http://www.open-open.com/lib/view/open1363156299203.html
-// http://blog.csdn.net/lmj623565791/article/details/23960391
 
