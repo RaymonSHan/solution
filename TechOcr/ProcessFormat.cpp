@@ -135,7 +135,7 @@ RESULT OcrFeatureWordsFound::ReturnCorner(CvPoint2D32f *csrc, CvPoint2D32f *cdst
 				bl = now->x - now->y - now->h;
 				nbl = i;
 			}
-			if (now->x + now->y + now->w + now->h) {
+			if (now->x + now->y + now->w + now->h > br) {
 				br = now->x + now->y + now->w + now->h;
 				nbr = i;
 			}

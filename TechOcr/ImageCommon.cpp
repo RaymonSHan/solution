@@ -67,6 +67,7 @@ void ComEnlargeBox(Box *box, Box &enlarge, int delta) {
 	enlarge.w = box->w + delta + delta;
 	enlarge.h = box->h + delta + delta;
 }
+
 IplImage* ComRotateImage(IplImage *src, int angle, bool clockwise) {
 	IplImage *dst = NULL, *temp;
 	int anglecalc;
@@ -531,16 +532,16 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 }
 
 
-int BITMASK32[4] = { 0xff, 0xffff, 0xffffff, 0xffffffff };
-static CvMemStorage *GlobalStorage = NULL;
+static int BITMASK32[4] = { 0xff, 0xffff, 0xffffff, 0xffffffff };
 static CvMemStorage* GetGlobalStorage(void) {
+	static CvMemStorage *GlobalStorage = NULL;
 	if (!GlobalStorage) {
 		GlobalStorage = cvCreateMemStorage(0);
 	}
 	return GlobalStorage;
 }
-static CvSeq FormatStart;
 static CvSeq* GetFormatStart(void) {
+	static CvSeq FormatStart;
 	static bool first = true;
 	if (!first) {
 		cvZero(&FormatStart);
@@ -559,6 +560,19 @@ static void Assign(CvRect &rect, int x, int y, int w, int h) {
 	rect.y = y;
 	rect.width = w;
 	rect.height = h;
+}
+static void Assign(char *&d, char *c, TrEncodeMode encode) {
+	char *utf8;
+	long size;
+	if (encode == ENCODE_GBK) {
+		ComGbkToUtf8(c, strlen(c), utf8, size);
+		d = utf8;
+	}
+	else {
+		size = strlen(c);
+		d = new char[strlen(c) + 16];
+		strncpy(d, c, size);
+	}
 }
 static void AssignRemoveCR(int &i, char *c, TrEncodeMode encode) {
 	char *utf8;
@@ -610,20 +624,40 @@ bool ComIsBoxIsolated(Box *box, Boxa *boxa, int space) {
 	if (count == 1) return true;
 	else return false;
 }
-IplImage* TrWarpPerspective(IplImage *img, CvPoint2D32f *corner) {
-	CvPoint2D32f dstcornet[4];
-	CvMat *warp_mat = cvCreateMat(3, 3, CV_32FC1);
-	IplImage *dst = cvCreateImage(cvSize(img->width, img->height), img->depth, img->nChannels);
-	cvZero(dst);
-
+void ComCenterPoint(CvPoint2D32f *corner, CvPoint2D32f *dstcornet) {
 	dstcornet[0].x = dstcornet[3].x = ((corner + 0)->x + (corner + 3)->x) / 2;
 	dstcornet[1].x = dstcornet[2].x = ((corner + 1)->x + (corner + 2)->x) / 2;
 	dstcornet[0].y = dstcornet[1].y = ((corner + 0)->y + (corner + 1)->y) / 2;
 	dstcornet[2].y = dstcornet[3].y = ((corner + 2)->y + (corner + 3)->y) / 2;
-	cvGetPerspectiveTransform(corner, dstcornet, warp_mat);
-	cvWarpPerspective(img, dst, warp_mat);
+}
+IplImage* TrWarpPerspective(IplImage *img, int w, int h, CvMat *warp, CvMat *warp2) {
+	IplImage *dst = cvCreateImage(cvSize(w, h), img->depth, img->nChannels);
+	cvZero(dst);
+	CvMat *totalwarp;
+
+	if (warp2 != NULL) {
+		CvMat *totalwarp = cvCreateMat(3, 3, CV_32FC1);
+		cvMatMul(warp, warp2, totalwarp);
+		cvWarpPerspective(img, dst, totalwarp);
+		cvReleaseMat(&totalwarp);
+	}
+	else {
+		cvWarpPerspective(img, dst, warp);
+	}
+
 	return dst;
 }
+// IplImage* TrWarpPerspective(IplImage *img, int w, int h, CvPoint2D32f *corner) {
+// 	IplImage *dst;
+// 	CvPoint2D32f dstcornet[4];
+// 	CvMat *warp = cvCreateMat(3, 3, CV_32FC1);
+// 
+// 	ComCenterPoint(corner, dstcornet);
+// 	cvGetPerspectiveTransform(corner, dstcornet, warp);
+// 	dst = TrWarpPerspective(img, w, h, warp);
+// 	cvReleaseMat(&warp);
+// 	return dst;
+// }
 Pix* TrPixCreateFromIplImage(IplImage *img) {
 	// create Pix from IplImage
 	Pix	   *pix = NULL;
@@ -691,7 +725,7 @@ Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
 	int i;
 	int size = MAX(pix->w, pix->h);
 
-	api->SetImage(pix);
+// 	api->SetImage(pix);
 // 	boxa = api->GetConnectedComponents(&pixa);
 	boxa = api->GetWords(&pixa);
 	if (!boxa || !boxa->box) {
@@ -740,11 +774,23 @@ char* TrTranslateInRect(tesseract::TessBaseAPI *api, tesseract::PageSegMode mode
 	}
 	return str;
 }
-RESULT TechOcrCreatePix(IplImage *img, CvPoint2D32f *corner, Pix *&pix) {
+char* TrTranslateInRect(tesseract::TessBaseAPI *api, tesseract::PageSegMode mode, TrEncodeMode encode, CvRect *rect) {
+	// the first 4 * 32 bit is same for CvRect and Box
+	return TrTranslateInRect(api, mode, encode, (Box*)rect);
+}
+
+RESULT TechOcrCreatePix(IplImage *img, int w, int h, CvPoint2D32f *corner, Pix *&pix, CvMat *warp) {
 	IplImage *dst;
+	CvPoint2D32f dstcornet[4];
+// 	CvMat *warp;
 
 	if (corner) {
-		dst = TrWarpPerspective(img, corner);
+// 		warp = cvCreateMat(3, 3, CV_32FC1);
+
+		ComCenterPoint(corner, dstcornet);
+		cvGetPerspectiveTransform(corner, dstcornet, warp);
+		dst = TrWarpPerspective(img, w, h, warp);
+// 		cvReleaseMat(&warp);
 	}
 	else {
 		dst = img;
@@ -764,9 +810,11 @@ RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api, CvSeq *&feat
 	CharFound found;
 	CvMemStorage *storage;
 
+	api->SetImage(pix);
+
 	boxa = TrChoiceBoxInBoxa(api, pix);
 	storage = GetGlobalStorage();
-	feature = cvCreateSeq(CV_32SC(6), sizeof(CvSeq), sizeof(CharFound), storage);
+	feature = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
 
 	box = boxa->box;
 	for (i = 0; i < boxa->n; i++) {
@@ -780,19 +828,26 @@ RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api, CvSeq *&feat
 	boxaDestroy(&boxa);
 	return RESULT_OK;
 }
-
-RESULT TechOcrCreateFormat(CvSeq *&format) {
+RESULT TechOcrCreateFormat(CvSeq *&format, char *name, int w, int h, TrEncodeMode encode) {
+	static volatile MYINT nowid = 0;
 	CvMemStorage *storage;
 	CvSeq *last;
+	CharFound found;
 
 	last = GetFormatStart();
 	storage = GetGlobalStorage();
 	while (last->h_next) {
 		last = last->h_next;
 	}
-	format = cvCreateSeq(CV_32SC(6), sizeof(CvSeq), sizeof(CharFound), storage);
+	format = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
 	last->h_next = format;
 	format->h_next = NULL;
+
+	Assign(found.rect, 0, 0, w, h);
+	found.found = (int)InterInc(&nowid) - 1;
+	Assign(found.desc, name, encode);
+	found.chartype = CHARTYPE_FORMAT_ID;
+	cvSeqPush(format, &found);
 	return RESULT_OK;
 }
 RESULT TechOcrFormatAddFeature(CvSeq *format, int x, int y, int w, int h, char *c, TrEncodeMode encode) {
@@ -804,19 +859,264 @@ RESULT TechOcrFormatAddFeature(CvSeq *format, int x, int y, int w, int h, char *
 	cvSeqPush(format, &found);
 	return RESULT_OK;
 }
-RESULT TechOcrFormatAddContent(CvSeq *format, int x, int y, int w, int h, char *c, TrEncodeMode encode) {
+RESULT TechOcrFormatAddContent(CvSeq *format, int x, int y, int w, int h, char *c, int mode, TrEncodeMode encode) {
 	CharFound found;
 
 	Assign(found.rect, x, y, w, h);
-	AssignRemoveCR(found.found, c, encode);
-	found.chartype = CHARTYPE_CONTENT;
+	Assign(found.desc, c, encode);
+	found.chartype = mode;
 	cvSeqPush(format, &found);
 	return RESULT_OK;
 }
-
+void TrGetFormatScreenRect(CvSeq *format, int &w, int &h) {
+	int i;
+	CharFound *found;
+	for (i = 0; i < format->total; i++) {
+		found = (CharFound*)cvGetSeqElem(format, i);
+		if (found->chartype == CHARTYPE_FORMAT_ID) {
+			w = found->rect.width;
+			h = found->rect.height;
+			return;
+		}
+	}
+}
 
 #define DELTA_RATE 0.1
 #define DELTA_DISTANCE 10
+int TrFeatureMatch(CvSeq *feature, CvSeq *format, int feaorder, int fororder) {
+	int fealen, forlen;
+	CharFound *feachar, *forchar;
+	float xrate, yrate;
+	int forx, foxy, feax, feay;
+	float shouldx, shouldy, shouldw, shouldh;
+	int i, j;
+	int match = 0;
+
+	// 	int maxdeltax = 0, maxdeltay = 0;
+
+	fealen = feature->total;
+	forlen = format->total;
+	forchar = (CharFound*)cvGetSeqElem(format, fororder);
+	feachar = (CharFound*)cvGetSeqElem(feature, feaorder);
+	xrate = (float)forchar->rect.width / feachar->rect.width;
+	yrate = (float)forchar->rect.height / feachar->rect.height;
+	forx = forchar->rect.x;
+	foxy = forchar->rect.y;
+	feax = feachar->rect.x;
+	feay = feachar->rect.y;
+
+	for (j = 0; j < fealen; j++) {
+		feachar = (CharFound*)cvGetSeqElem(feature, j);
+		feachar->chartype = CHARTYPE_NOT_MATCH;
+	}
+	for (i = 0; i < forlen; i++) {
+		forchar = (CharFound*)cvGetSeqElem(format, i);
+		if (forchar->chartype != CHARTYPE_FEATURE) {
+			continue;
+		}
+		shouldx = (forchar->rect.x - forx) / xrate + feax;
+		shouldy = (forchar->rect.y - foxy) / yrate + feay;
+		shouldw = (float)forchar->rect.width / xrate;
+		shouldh = (float)forchar->rect.height / yrate;
+
+		for (j = 0; j < fealen; j++) {
+			feachar = (CharFound*)cvGetSeqElem(feature, j);
+			if (forchar->found != feachar->found) {
+				continue;
+			}
+			if ((feachar->rect.x > shouldx * (1 - DELTA_RATE) - DELTA_DISTANCE) &&
+				(feachar->rect.x < shouldx * (1 + DELTA_RATE) + DELTA_DISTANCE) &&
+				(feachar->rect.y > shouldy * (1 - DELTA_RATE) - DELTA_DISTANCE) &&
+				(feachar->rect.y < shouldy * (1 + DELTA_RATE) + DELTA_DISTANCE)) {
+				feachar->chartype = CHARTYPE_MATCH | i;
+				match++;
+				// 				if (abs(feachar->rect.x - shouldx) > maxdeltax) maxdeltax = abs(feachar->rect.x - shouldx);
+				// 				if (abs(feachar->rect.x - shouldx) > maxdeltay) maxdeltay = abs(feachar->rect.x - shouldx);
+				break;
+			}
+		}
+	}
+	return match;
+}
+int TrFeatureMostMatch(CvSeq *feature, CvSeq *format, int &feaorder, int &fororder) {
+	int fealen, forlen;
+	int i, j;
+	CharFound *feachar, *forchar;
+	int matched, maxmatch = 0;
+
+	if (!feature || !format) {
+		return 0;
+	}
+	fealen = feature->total;
+	forlen = format->total;
+	if (!fealen || !forlen) {
+		return 0;
+	}
+
+	for (i = 0; i < forlen; i++) {
+		forchar = (CharFound*)cvGetSeqElem(format, i);
+		if (forchar->chartype != CHARTYPE_FEATURE) {
+			continue;
+		}
+		for (j = 0; j < fealen; j++) {
+			feachar = (CharFound*)cvGetSeqElem(feature, j);
+			if (forchar->found != feachar->found) {
+				continue;
+			}
+			matched = TrFeatureMatch(feature, format, j, i);
+			if (matched > maxmatch) {
+				maxmatch = matched;
+				fororder = i;
+				feaorder = j;
+			}
+		}
+	}
+	return maxmatch;
+}
+void TrGetCornerInMatch(CvSeq *feature, CvSeq *format, int maxfea, int maxfor, CvPoint2D32f *csrc, CvPoint2D32f *cdst) {
+	int tl = MAXINT, tr = -1 * MAXINT, bl = MAXINT, br = -1 * MAXINT;
+	int j, fealen;
+	CharFound *feachar, *forchar;
+	CvRect *rect;
+	int cornum[4];
+
+	if (!format) {
+		csrc = cdst = NULL;
+		return;
+	}
+	// for set CHARTYPE_MATCH 
+	TrFeatureMatch(feature, format, maxfea, maxfor);
+
+	fealen = feature->total;
+	for (j = 0; j < fealen; j++) {
+		feachar = (CharFound*)cvGetSeqElem(feature, j);
+		if (feachar->chartype & CHARTYPE_MATCH) {
+			rect = &feachar->rect;
+			if (rect->x + rect->y < tl) {
+				tl = rect->x + rect->y;
+				cornum[0] = j;
+			}
+			if (rect->x + rect->width - rect->y > tr) {
+				tr = rect->x + rect->width - rect->y;
+				cornum[1] = j;
+			}
+			if (rect->x - rect->y - rect->height < bl) {
+				bl = rect->x - rect->y - rect->height;
+				cornum[3] = j;
+			}
+			if (rect->x + rect->y + rect->width + rect->height > br) {
+				br = rect->x + rect->y + rect->width + rect->height;
+				cornum[2] = j;
+			}
+		}
+	}
+
+	for (j = 0; j < 4; j++) {
+		feachar = (CharFound*)cvGetSeqElem(feature, cornum[j]);
+		forchar = (CharFound*)cvGetSeqElem(format, feachar->chartype & (~CHARTYPE_MATCH));
+		(csrc + j)->x = (float)feachar->rect.x;
+		(csrc + j)->y = (float)feachar->rect.y;
+		(cdst + j)->x = (float)forchar->rect.x;
+		(cdst + j)->y = (float)forchar->rect.y;
+		if (j == 1 || j == 2) {
+			(csrc + j)->x += (float)feachar->rect.width;
+			(cdst + j)->x += (float)forchar->rect.width;
+		}
+		if (j == 2 || j == 3) {
+			(csrc + j)->y += (float)feachar->rect.height;
+			(cdst + j)->y += (float)forchar->rect.height;
+		}
+	}
+}
+
+#define MIN_CONFIRM				6
+
+RESULT TechOcrFormatMostMatch(CvSeq *feature, CvSeq *&bestformat, int &maxmatch, CvMat *wrap) {
+	CvSeq *now;
+	RESULT result = RESULT_ERR;
+	int matched;
+	int feaorder, fororder;
+	int maxfea, maxfor;
+	CvPoint2D32f csrc[4], cdst[4];
+
+	if (bestformat) {
+		maxmatch = TrFeatureMostMatch(feature, bestformat, maxfea, maxfor);
+		if (maxmatch > MIN_CONFIRM)
+			result = RESULT_OK;
+	}
+	else {
+		maxmatch = MIN_CONFIRM;
+		now = GetFormatStart()->h_next;
+		while (now) {
+			matched = TrFeatureMostMatch(feature, now, feaorder, fororder);
+			if (matched > maxmatch) {
+				bestformat = now;
+				maxmatch = matched;
+				maxfea = feaorder;
+				maxfor = fororder;
+				result = RESULT_OK;
+			}
+			now = now->h_next;
+		}
+	}
+	if (result == RESULT_OK) {
+		TrGetCornerInMatch(feature, bestformat, maxfea, maxfor, csrc, cdst);
+		cvGetPerspectiveTransform(csrc, cdst, wrap);
+	}
+	return result;
+}
+
+
+#define ENLAGRE_X     16
+#define ENLARGE_Y     24
+#define MIN_WORD_SIZE 30
+bool comBoxInRect(Box *box, CvRect *rect) {
+	if (box->x + box->w > rect->x + MIN_WORD_SIZE &&
+		box->x < rect->x + rect->width - MIN_WORD_SIZE &&			// attention the condition
+		box->y > rect->y &&
+		box->y + box->h < rect->y + rect->height) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+CvRect comDetectWord(Pixa *pixa, CvRect *rect) {
+	int i;
+	int minx = rect->x + rect->width;
+	int miny = rect->y + rect->height;
+	int maxx = rect->x;
+	int maxy = rect->y;
+	Box **box = pixa->boxa->box;
+	for (i = 0; i < pixa->n; i++) {
+		if ((*box)->w > MIN_WORD_SIZE && (*box)->h > MIN_WORD_SIZE &&
+			comBoxInRect(*box, rect)) {
+			minx = MIN(minx, (*box)->x);
+			miny = MIN(miny, (*box)->y);
+			maxx = MAX(maxx, ((*box)->x + (*box)->w));
+			maxy = MAX(maxy, ((*box)->y + (*box)->h));
+		}
+		box++;
+	}
+	minx = MAX(rect->x, minx);
+	miny = MAX(rect->y, miny);
+	maxx = MIN((rect->x + rect->width), maxx);
+	maxy = MIN((rect->y + rect->height), maxy);
+	if (maxx < minx || maxy < miny) {
+		return *rect;
+	}
+	else {
+		return cvRect(minx, miny, MAX(maxx - minx, 0), MAX(maxy - miny, 0));
+	}
+}
+
+
+
+
+
+
+
 
 bool ComMatchPlace(TrFeatureWordFound *one, TrFeatureWordFound *two) {
 	double onex, oney, twox, twoy, disx, disy;
@@ -968,7 +1268,4 @@ IplImage* TrCreateLine(IplImage *img, CvSeq *lines) {
 // following function is declare outside
 
 // here lines is created by cvHoughLines2
-
-
-
 

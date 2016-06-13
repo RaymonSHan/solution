@@ -35,10 +35,6 @@
 #define DEFAULT_WIDTH			3
 #define THICK_WIDTH				15
 
-struct TrFeatureWordFound;
-
-
-
 // 返回点到直线的距离。x、y确定点。x1、y1，x2、y2确定直线。
 // 算法取自 http://blog.csdn.net/hhhh63/article/details/25030143。
 double ComPointToLineDist(int x, int y, int x1, int y1, int x2, int y2);
@@ -144,12 +140,20 @@ CvSeq* TrGetFourCorner(CvSeq *fitlines, CvMemStorage *storage, CvPoint2D32f *cen
 RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop = DEFAULT_LOOP);
 
 
+
+// following for format use
 #define CHARTYPE_FEATURE			0
-#define CHARTYPE_CONTENT			1
+#define CHARTYPE_CONTENT_WORD		1
+#define CHARTYPE_CONTENT_BLOCK		2
+#define CHARTYPE_FORMAT_ID			3
+// following for candidate feature use
+#define CHARTYPE_NOT_MATCH			0x10000
+#define CHARTYPE_MATCH				0x100000
 typedef struct CharFound {
 	CvRect rect;
 	int found;
 	int chartype;
+	char *desc;
 }CharFound, *pCharFound;
 
 typedef enum TrEncodeMode {
@@ -166,10 +170,14 @@ bool ComIsWordBox(Box *box, Pix *pix, int largerate = LARGE_RATE, int smallrate 
 // 判定指定Box在Boxa中，是否与其它Box相交。
 bool ComIsBoxIsolated(Box *box, Boxa *boxa, int space);
 
+// 取转正点中值。
+void ComCenterPoint(CvPoint2D32f *corner, CvPoint2D32f *dstcornet);
+
 // 以下函数完成第二步工作：预读取
 //
 // 按TechOcrGetFourCorner()的结果，转正图形。
-IplImage* TrWarpPerspective(IplImage *img, CvPoint2D32f *corner);
+IplImage* TrWarpPerspective(IplImage *img, int w, int h, CvMat *warp, CvMat *warp2 = NULL);
+// IplImage* TrWarpPerspective(IplImage *img, int w, int h, CvPoint2D32f *corner);
 
 // 将OpenCV的IplImage格式，转换为Leptonica的Pix格式。
 Pix* TrPixCreateFromIplImage(IplImage *img);
@@ -187,11 +195,12 @@ Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix);
 // 按指定模式、指定编码，识别指定区域中的文字。
 // 返回值需要用delete[]释放。
 char* TrTranslateInRect(tesseract::TessBaseAPI *api, tesseract::PageSegMode mode, TrEncodeMode encode, Box *box);
+char* TrTranslateInRect(tesseract::TessBaseAPI *api, tesseract::PageSegMode mode, TrEncodeMode encode, CvRect *rect);
 
 // 第二步主要工作，预识别特征字
 //
 // 按投影变换矩阵，生成Pix。
-RESULT TechOcrCreatePix(IplImage *img, CvPoint2D32f *corner, Pix *&pix);
+RESULT TechOcrCreatePix(IplImage *img, int w, int h, CvPoint2D32f *corner, Pix *&pix, CvMat *warp);
 
 // 对指定图像进行预处理，获取特征字及其位置坐标。
 // corner：来源于TechOcrGetFourCorner()
@@ -202,20 +211,38 @@ RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api,	CvSeq *&feat
 // 第二步主要工作，定义模板
 //
 // 定义模板，创建模板
-RESULT TechOcrCreateFormat(CvSeq *&format);
+RESULT TechOcrCreateFormat(CvSeq *&format, char *name, int w, int h, TrEncodeMode encode = ENCODE_GBK);
 // 定义模板，添加特征字
 RESULT TechOcrFormatAddFeature(CvSeq *format, int x, int y, int w, int h, char *c, TrEncodeMode encode = ENCODE_GBK);
 // 定义模板，添加识别内容
-RESULT TechOcrFormatAddContent(CvSeq *format, int x, int y, int w, int h, char *c, TrEncodeMode encode = ENCODE_GBK);
+RESULT TechOcrFormatAddContent(CvSeq *format, int x, int y, int w, int h, char *c, 
+	int mode = CHARTYPE_CONTENT_WORD, TrEncodeMode encode = ENCODE_GBK);
 
+// 取得模板所对应的屏幕尺寸。即TechOcrCreateFormat()中的w、h参数。
+void TrGetFormatScreenRect(CvSeq *format, int &w, int &h);
+
+// 计算特定位置下的匹配程度
+int TrFeatureMatch(CvSeq *feature, CvSeq *format, int feaorder, int fororder);
+
+// 根据特征字位置，寻找特定模板中的匹配数量，以及最佳匹配在序列中的位置
+int TrFeatureMostMatch(CvSeq *feature, CvSeq *format, int &feaorder, int &fororder);
+
+// 在确定匹配的特征字中，找到四个角位置的序号。
+void TrGetCornerInMatch(CvSeq *feature, CvSeq *format, int maxfea, int maxfor, CvPoint2D32f *csrc, CvPoint2D32f *cdst);
 
 // 第二步最后工作，确定模板
 //
-// 根据特征字位置，判定模板，并返回变换矩阵
-// format：当输入非0时，仅判定此模板格式；如为0，寻找最适合的模板。
-RESULT TechOcrChoiceFormat(CvSeq *feature, CvSeq *&format, CvPoint2D32f *corner);
+// 返回最匹配的模板，以及对应点位置和匹配度。并返回投影变换矩阵。
+// 如果bestformat输入不为空，则仅处理对应模板。
+RESULT TechOcrFormatMostMatch(CvSeq *feature, CvSeq *&bestformat, int &maxmatch, CvMat *wrap);
+
+bool comBoxInRect(Box *box, CvRect *rect);
+CvRect comDetectWord(Pixa *pixa, CvRect *rect);
 
 
+
+
+struct TrFeatureWordFound;
 bool ComMatchPlace(TrFeatureWordFound *one, TrFeatureWordFound *two);
 
 
@@ -230,7 +257,12 @@ IplImage* TrCreateLine(IplImage *img, CvSeq *lines);
 
 
 
-
-
-
-// void thinImage(IplImage* src, IplImage* dst, int maxIterations);
+// CvPoint TransformPoint(const CvPoint point, const CvMat *matrix) {
+// 	double coordinates[3] = { (double)point.x, (double)point.y, (double)1 };
+// 	CvMat originVector = cvMat(3, 1, CV_64F, coordinates);
+// 	CvMat transformedVector = cvMat(3, 1, CV_64F, coordinates);
+// 	cvMatMul(matrix, &originVector, &transformedVector);
+// 	CvPoint outputPoint = cvPoint((int)(cvmGet(&transformedVector, 0, 0) / cvmGet(&transformedVector, 2, 0)),
+// 		(int)(cvmGet(&transformedVector, 1, 0) / cvmGet(&transformedVector, 2, 0)));
+// 	return outputPoint;
+// };

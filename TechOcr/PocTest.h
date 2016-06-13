@@ -12,6 +12,11 @@ void pocFindFeatureWords(char *src);
 void pocFindFeatureWordsInClass(char *src);
 void pcoPreprocess(char *filename);
 
+void pocCreateBusinessLicense(void);
+
+
+
+
 void pocShowImage(char *src);
 
 void pocPointToLineDist(void);
