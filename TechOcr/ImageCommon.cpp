@@ -4,6 +4,13 @@
 #define DEFAULT_ADAPTIVE_TH_SIZE  25
 #define DEFAULT_ADAPTIVE_TH_DELTA 10
 
+// http://blog.csdn.net/hhhh63/article/details/25030143
+double comPointToLineDist(int x, int y, int x1, int y1, int x2, int y2) {
+	double a = (x2 - x1) * (y - y1) - (y2 - y1) * (x - x1);
+	double b = sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+	double s = a / b;
+	return abs(s);
+}
 // following function is for translate data between leptonica and opencv
 Pix* trPixCreateFromIplImage(IplImage *img) {
 // create Pix from IplImage
@@ -54,8 +61,8 @@ Pix* trPixCreateFromIplImage(IplImage *img) {
 }
 
 // following function is major for opencv
-IplImage* trCloneImg1c(IplImage *src) {
-// get the one channel gray image of the source
+IplImage* trCloneImg1c(IplImage *src, bool threshold, int thresvalue) {
+// get the one channel gray image of the source, and do threshold is need
 	IplImage	*img1c;
 
 	if (!src) {
@@ -69,10 +76,11 @@ IplImage* trCloneImg1c(IplImage *src) {
 		cvCopy(src, img1c);
 	}
 
-// 	if (gaussian)
-// 		cvSmooth(img1c, img1c, CV_GAUSSIAN, 3, 3);
-// 	cvAdaptiveThreshold(img1c, img1c, 128, CV_ADAPTIVE_THRESH_MEAN_C,
-// 		CV_THRESH_BINARY_INV, DEFAULT_ADAPTIVE_TH_SIZE, DEFAULT_ADAPTIVE_TH_DELTA);	
+	if (threshold) {
+		cvSmooth(img1c, img1c, CV_GAUSSIAN, 3, 3);
+		cvAdaptiveThreshold(img1c, img1c, thresvalue, CV_ADAPTIVE_THRESH_MEAN_C,
+			CV_THRESH_BINARY_INV, DEFAULT_ADAPTIVE_TH_SIZE, DEFAULT_ADAPTIVE_TH_DELTA);
+	}
 	return img1c;
 }
 
@@ -127,15 +135,14 @@ IplImage* trRotateImage(IplImage *src, int angle, bool clockwise) {
 	return dst;
 };
 
-#define MAX_CONTOUR_RATE	0.002
-
-IplImage* trCreateMaxContour(IplImage *src, CvMemStorage *storage) {
+IplImage* trCreateMaxContour(IplImage *src, CvMemStorage *storage, int thresv, double arate, double lrate) {
 // src can be 8 or 24 bit, return image is 8 bit
 	CvSeq *conts;
 	CvSeq *nowcont;
 	IplImage *img1c, *dst;
 	CvMemStorage *nowstore;
 	double arearate, area;
+	double lenrate, len;
 
 	if (!src) {
 		return NULL;
@@ -148,29 +155,37 @@ IplImage* trCreateMaxContour(IplImage *src, CvMemStorage *storage) {
 	}
 	conts = cvCreateSeq(CV_SEQ_ELTYPE_POINT, sizeof(CvSeq), sizeof(CvPoint), nowstore);
 
-	img1c = trCloneImg1c(src);
-	cvSmooth(img1c, img1c, CV_GAUSSIAN, 3, 3);
-	cvAdaptiveThreshold(img1c, img1c, 128, CV_ADAPTIVE_THRESH_MEAN_C,
-		CV_THRESH_BINARY_INV, DEFAULT_ADAPTIVE_TH_SIZE, DEFAULT_ADAPTIVE_TH_DELTA);	dst = cvCreateImage(cvSize(src->width, src->height), IPL_DEPTH_8U, 1);
+	img1c = trCloneImg1c(src, true, thresv);	dst = cvCreateImage(cvSize(src->width, src->height), IPL_DEPTH_8U, 1);
 	cvZero(dst);
 
 	cvFindContours(img1c, nowstore, &conts, sizeof(CvContour),
 		CV_RETR_TREE, CV_CHAIN_APPROX_NONE, cvPoint(0, 0));
 
-	arearate = src->width * src->height * MAX_CONTOUR_RATE;
+	arearate = src->width * src->height * arate;
+	lenrate = MIN(src->width, src->height) * lrate;
+
 	for (nowcont = conts; nowcont; nowcont = nowcont->h_next) {
+		len = fabs(cvArcLength(nowcont));
 		area = fabs(cvContourArea(nowcont));
-		if (area > arearate) {
+		if (area > arearate || len > lenrate) {
 			cvDrawContours(dst, nowcont, CV_RGB(255,255,255), CV_RGB(255, 255, 255), 0, DEFAULT_WIDTH);
 		}
-	}
-	for (nowcont = conts; nowcont; nowcont = nowcont->h_next) {
 		cvClearSeq(nowcont);
 	}
 	cvReleaseImage(&img1c);
 	if (!storage) {
 		cvReleaseMemStorage(&nowstore);
 	}
+	return dst;
+}
+
+IplImage* trCreateLine(IplImage *img, CvSeq *lines) {
+	IplImage *dst;
+	dst = cvCreateImage(cvSize(img->width, img->height), IPL_DEPTH_8U, 1);
+// 	cvSet(dst, CV_RGB(255, 255, 255));
+// 	trDrawLines(dst, lines, false, &CV_RGB(0, 0, 0), DEFAULT_WIDTH, &CV_RGB(0, 0, 0));
+	cvSet(dst, CV_RGB(0, 0, 0));
+	trDrawLines(dst, lines, false, &CV_RGB(255, 255, 255), DEFAULT_WIDTH, &CV_RGB(255, 255, 255));
 
 	return dst;
 }
@@ -179,7 +194,7 @@ CvSeq* trCreateHoughLines(IplImage *src, CvMemStorage *storage) {
 // here src MUST be one channel
 //	CvMemStorage* storage = cvCreateMemStorage(0);
 	CvSeq* lines = 0;
-	double rho = 1;
+	double rho = 3;
 // 	double theta = CV_PI / 180;
 // 	double threshold = 30;
 // 	double min_length = 200;//CV_HOUGH_PROBABILISTIC  
@@ -190,8 +205,8 @@ CvSeq* trCreateHoughLines(IplImage *src, CvMemStorage *storage) {
 // 	double sepration_connection = 40;//CV_HOUGH_PROBABILISTIC  
 
 	int size = MAX(src->width, src->height);
-	double threshold = (double)size / 8;
-	double min_length = (double)size / 5;
+	double threshold = (double)size / 4;
+	double min_length = (double)size / 3;
 	double sepration_connection = (double)size / 40;
 
 

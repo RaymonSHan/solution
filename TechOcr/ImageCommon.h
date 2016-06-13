@@ -27,15 +27,25 @@
 #define DEFALUT_COLOR			CV_RGB(221, 134, 212)
 #define DEFALUT_POINT_COLOR		CV_RGB(112, 222, 66)
 
+#define MAX_CONTOUR_AREA_RATE	0.1
+#define MAX_CONTOUR_LENGTH_RATE 2
+#define DEFAULT_THRESV_VALUE 160
+
+#define THICK_WIDTH				1
 #define DEFAULT_WIDTH			3
+
+double comPointToLineDist(int x, int y, int x1, int y1, int x2, int y2);
 
 // following function is for translate data between leptonica and opencv
 Pix* trPixCreateFromIplImage(IplImage *img);
 
 // following function is major for opencv
-IplImage* trCloneImg1c(IplImage *src);
+IplImage* trCloneImg1c(IplImage *src, bool threshold = false, int thresvalue = 128);	// whether do cvAdaptiveThreshold
 IplImage* trRotateImage(IplImage* src, int angle, bool clockwise);
-IplImage* trCreateMaxContour(IplImage *src, CvMemStorage *storage = NULL);
+IplImage* trCreateMaxContour(IplImage *src, CvMemStorage *storage = NULL, 
+	int thresv = DEFAULT_THRESV_VALUE, double arate = MAX_CONTOUR_AREA_RATE, double lrate = MAX_CONTOUR_LENGTH_RATE);
+IplImage* trCreateLine(IplImage *img, CvSeq *lines);
+
 CvSeq* trCreateHoughLines(IplImage *src, CvMemStorage *storage);
 
 // following function is major for tesseract
@@ -52,3 +62,5 @@ void trShowImage(char *name, IplImage *img,
 
 
 
+
+void thinImage(IplImage* src, IplImage* dst, int maxIterations);
