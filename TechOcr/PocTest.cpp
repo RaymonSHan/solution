@@ -162,7 +162,7 @@ void pocFindFeatureWordsInClass(char *src) {
 	box = boxc->box;
 	for (i = 0; i < boxc->n; i++) {
 		Box enlarge;
-		ComEnlargeBox(*box, enlarge, 1);
+		ComEnlargeBox(*box, enlarge, 1, 1);
 		str = TrTranslateInRect(api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK, &enlarge);
 // 		str = trTranslateInRect(*box, api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK);
 		result = found->AddFound(*box, str);
@@ -282,10 +282,14 @@ void pcoPreprocess(char *filename) {
 	IplImage *src, *dst;
 	Pix *pix;
 	tesseract::TessBaseAPI* api;
-	CvSeq *feature, *bestformat = NULL;
+	CvSeq *feature, *content, *bestformat = NULL;
 // 	CvPoint2D32f csrc[4], cdst[4];
 // 	int mostfea, mostfor;
 	int match, rotateloop = 0;
+	CvMemStorage *storage;
+	int i;
+	storage = GetGlobalStorage();
+
 
 	CvMat *warp1 = cvCreateMat(3, 3, CV_32FC1);
 	CvMat *warp2 = cvCreateMat(3, 3, CV_32FC1);
@@ -334,57 +338,95 @@ void pcoPreprocess(char *filename) {
 // 	std::cout << std::endl << std::endl;
 	cvRelease((void**)&feature);
 
-	int w, h, i;
-	TrGetFormatScreenRect(bestformat, w, h);
+	CharFound* found, *featurematch;
+	char * ch, *gb;
+	long gsize;
+	content = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
+	TechOcrDetectWordsInFormat(dst, warp1, warp2, bestformat, content);
 
-	IplImage *d1, *d2;
-	CharFound* found;
-// 	d1 = TrWarpPerspective(dst, dst->width, dst->height, warp1);
-	d2 = TrWarpPerspective(dst, w, h, warp1, warp2);
-	pix = TrPixCreateFromIplImage(d2);
-	api = TechOcrInitTessAPI();
-	api->SetImage(pix);
-	Boxa *boxa;
-	Pixa *pixa;
-	Box **box;
-	boxa = api->GetWords(&pixa);
-	CvRect rect;
-	tesseract::PageSegMode mode;
+	for (i = 0; i < content->total; i++) {
+		found = (CharFound*)cvGetSeqElem(content, i);
+		ch = (char*)found->desc;
+		ComUtf8ToGbk(ch, strlen(ch), gb, gsize);
+		std::cout << found->rect.x << ", " << found->rect.y << ", CHAR " << ch;
+		delete[] gb;
+		delete[] ch;
+		featurematch = (CharFound*)cvGetSeqElem(bestformat, found->found);
+		ch = (char*)featurematch->desc;
+		ComUtf8ToGbk(ch, strlen(ch), gb, gsize);
+		std::cout << ", " << gb << std::endl;
+		delete[] gb;
+		delete[] ch;
 
-	for (i = 0; i < bestformat->total; i++) {
-		found = (CharFound*)cvGetSeqElem(bestformat, i);
-		if (found->chartype != CHARTYPE_CONTENT_BLOCK && found->chartype != CHARTYPE_CONTENT_WORD) {
-			continue;
-		}
-		rect = comDetectWord(pixa, &(found->rect));
-		rect.x -= 16;
-		rect.y -= 16;
-		rect.width += 32;
-		rect.height += 32;
-
-		cvRectangleR(d2, rect, CV_RGB(100, 200, 33), 3);
-		if (found->chartype == CHARTYPE_CONTENT_BLOCK) {
-			mode = tesseract::PSM_SINGLE_BLOCK;
-		}
-		else {
-			mode = tesseract::PSM_SINGLE_WORD;
-		}
-		char* str = TrTranslateInRect(api, mode, ENCODE_GBK, &rect);
-		std::cout << str << std::endl;
 	}
-	ComDrawBoxs(d2, boxa, &CV_RGB(200, 1, 22), 3);
+	std::cout << std::endl << std::endl;
+
+	cvRelease((void**)&content);
+
+// 	int w, h, i;
+// 	TrGetFormatScreenRect(bestformat, w, h);
+// 
+// // 	CvMemStorage *storage;
+// // 	storage = GetGlobalStorage();
+// // 	feature = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
+// 
+// 
+// 	IplImage *d1, *d2;
+// 	CharFound* found;
+// // 	d1 = TrWarpPerspective(dst, dst->width, dst->height, warp1);
+// 	d2 = TrWarpPerspective(dst, w, h, warp1, warp2);
+// 	pix = TrPixCreateFromIplImage(d2);
+// 	api = TechOcrInitTessAPI();
+// 	api->SetImage(pix);
+// 	Boxa *boxa;
+// 	Pixa *pixa;
+// 	Box **box;
+// // 	api->SetRectangle(1000, 400, 2000, 3000); can add and should modify start x and y.
+// 	boxa = api->GetWords(&pixa);
+// 	CvRect rect;
+// 	tesseract::PageSegMode mode;
+// 
+// 	for (i = 0; i < bestformat->total; i++) {
+// 		found = (CharFound*)cvGetSeqElem(bestformat, i);
+// 		if (found->chartype != CHARTYPE_CONTENT_BLOCK && found->chartype != CHARTYPE_CONTENT_WORD) {
+// 
+// 			if (found->chartype == CHARTYPE_FEATURE) {
+// 				cvRectangleR(d2, found->rect, CV_RGB(22, 33, 222), 2);
+// 			}
+// 			continue;
+// 		}
+// 		rect = comDetectWord(pixa, &(found->rect));
+// 		rect.x -= 16;
+// 		rect.y -= 16;
+// 		rect.width += 32;
+// 		rect.height += 32;
+// 
+// 		cvRectangleR(d2, rect, CV_RGB(100, 200, 33), 3);
+// 		if (found->chartype == CHARTYPE_CONTENT_BLOCK) {
+// 			mode = tesseract::PSM_SINGLE_BLOCK;
+// 		}
+// 		else {
+// 			mode = tesseract::PSM_SINGLE_WORD;
+// 		}
+// 		// for fast, only rect
+// 		char* str = TrTranslateInRect(api, mode, ENCODE_GBK, &rect);
+// 	//	found->desc = str;
+// 
+// 		std::cout << str << std::endl;
+// 	}
+// 	ComDrawBoxs(d2, boxa, &CV_RGB(200, 1, 22), 3);
 
 
 // 	ComShowImage("d1", d1);
-	ComShowImage("d2", d2);
+// 	ComShowImage("d2", d2);
 	cvWaitKey(0);
 
-	TechOcrExitTessAPI(api);
+// 	TechOcrExitTessAPI(api);
 
 	cvReleaseMat(&warp1);
 	cvReleaseMat(&warp2);
 
-	cvReleaseImage(&d2);
+// 	cvReleaseImage(&d2);
 	cvReleaseImage(&dst);
 	cvReleaseImage(&src);
 }
@@ -432,7 +474,8 @@ void pocCreateBusinessLicense(void) {
 	TechOcrFormatAddContent(format, 1095, 2095, 1700, 66, "注册资本");
 	TechOcrFormatAddContent(format, 1095, 2212, 1700, 66, "成立日期");
 	TechOcrFormatAddContent(format, 1095, 2330, 1700, 66, "营业期限");
-	TechOcrFormatAddContent(format, 1095, 2440, 1700, 550, "经营范围", CHARTYPE_CONTENT_BLOCK);
+// 	TechOcrFormatAddContent(format, 1095, 2440, 1700, 550, "经营范围", CHARTYPE_CONTENT_BLOCK);
+	// make it faster
 
 	return;
 }

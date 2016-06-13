@@ -52,8 +52,9 @@ bool ComIsLineIntersect(CvPoint2D32f *p1, CvPoint2D32f *p2, CvPoint2D32f *p3, Cv
 // 按cvFitLine()返回格式的两条直线参数
 bool ComIsLineIntersect(float *l1, float *l2, CvPoint2D32f &p);
 
-// 将box矩形区域的各边，扩大delta像素。
-void ComEnlargeBox(Box *box, Box &enlarge, int delta);
+// 将box、Rect矩形区域的各边，扩大delta像素。
+void ComEnlargeBox(Box *box, Box &enlarge, int deltax, int deltay);
+void ComEnlargeRect(CvRect *box, CvRect &enlarge, int deltax, int deltay);
 
 // 将图像按度数旋转，clockwise为真时为顺时针。
 IplImage* ComRotateImage(IplImage* src, int angle, bool clockwise);
@@ -161,6 +162,8 @@ typedef enum TrEncodeMode {
 	ENCODE_UTF8
 }TrEncodeMode;
 
+CvMemStorage* GetGlobalStorage(void);
+
 // 根据矩形大小，判定是否为识别字区域。
 // 需小于 1/LARGE_RATE 屏幕尺寸，大于 1/SMALL_RATE 屏幕尺寸
 #define LARGE_RATE				10
@@ -199,7 +202,7 @@ char* TrTranslateInRect(tesseract::TessBaseAPI *api, tesseract::PageSegMode mode
 
 // 第二步主要工作，预识别特征字
 //
-// 按投影变换矩阵，生成Pix。
+// 根据标定边缘点，生成投影变换矩阵，并生成Pix。
 RESULT TechOcrCreatePix(IplImage *img, int w, int h, CvPoint2D32f *corner, Pix *&pix, CvMat *warp);
 
 // 对指定图像进行预处理，获取特征字及其位置坐标。
@@ -236,8 +239,16 @@ void TrGetCornerInMatch(CvSeq *feature, CvSeq *format, int maxfea, int maxfor, C
 // 如果bestformat输入不为空，则仅处理对应模板。
 RESULT TechOcrFormatMostMatch(CvSeq *feature, CvSeq *&bestformat, int &maxmatch, CvMat *wrap);
 
+
+
+// 根据汉字横排的规律，横向仅需要部分匹配，纵向需要全部匹配。
 bool comBoxInRect(Box *box, CvRect *rect);
+
+// 根据标定的待识别区域，找到实际的文字位置。
 CvRect comDetectWord(Pixa *pixa, CvRect *rect);
+
+// 第三步主要工作，根据待识别区域，识别文字。
+RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvSeq *bestformat, CvSeq *content);
 
 
 

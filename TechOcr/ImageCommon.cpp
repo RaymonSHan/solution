@@ -61,13 +61,18 @@ bool ComIsLineIntersect(float *l1, float *l2, CvPoint2D32f &p) {
 	CvPoint2D32f p4 = cvPoint2D32f(*(l2 + 2) + *(l2 + 0) * 1000, *(l2 + 3) + *(l2 + 1) * 1000);
 	return ComIsLineIntersect(&p1, &p2, &p3, &p4, p);
 }
-void ComEnlargeBox(Box *box, Box &enlarge, int delta) {
-	enlarge.x = box->x - delta;
-	enlarge.y = box->y - delta;
-	enlarge.w = box->w + delta + delta;
-	enlarge.h = box->h + delta + delta;
+void ComEnlargeBox(Box *box, Box &enlarge, int deltax, int deltay) {
+	enlarge.x = box->x - deltax;
+	enlarge.y = box->y - deltay;
+	enlarge.w = box->w + deltax + deltax;
+	enlarge.h = box->h + deltay + deltay;
 }
-
+void ComEnlargeRect(CvRect *box, CvRect &enlarge, int deltax, int deltay) {
+	enlarge.x = box->x - deltax;
+	enlarge.y = box->y - deltay;
+	enlarge.width = box->width + deltax + deltax;
+	enlarge.height = box->height + deltay + deltay;
+}
 IplImage* ComRotateImage(IplImage *src, int angle, bool clockwise) {
 	IplImage *dst = NULL, *temp;
 	int anglecalc;
@@ -533,7 +538,7 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 
 
 static int BITMASK32[4] = { 0xff, 0xffff, 0xffffff, 0xffffffff };
-static CvMemStorage* GetGlobalStorage(void) {
+CvMemStorage* GetGlobalStorage(void) {
 	static CvMemStorage *GlobalStorage = NULL;
 	if (!GlobalStorage) {
 		GlobalStorage = cvCreateMemStorage(0);
@@ -637,7 +642,7 @@ IplImage* TrWarpPerspective(IplImage *img, int w, int h, CvMat *warp, CvMat *war
 
 	if (warp2 != NULL) {
 		CvMat *totalwarp = cvCreateMat(3, 3, CV_32FC1);
-		cvMatMul(warp, warp2, totalwarp);
+		cvMatMul(warp2, warp, totalwarp);			// the order is important
 		cvWarpPerspective(img, dst, totalwarp);
 		cvReleaseMat(&totalwarp);
 	}
@@ -647,17 +652,6 @@ IplImage* TrWarpPerspective(IplImage *img, int w, int h, CvMat *warp, CvMat *war
 
 	return dst;
 }
-// IplImage* TrWarpPerspective(IplImage *img, int w, int h, CvPoint2D32f *corner) {
-// 	IplImage *dst;
-// 	CvPoint2D32f dstcornet[4];
-// 	CvMat *warp = cvCreateMat(3, 3, CV_32FC1);
-// 
-// 	ComCenterPoint(corner, dstcornet);
-// 	cvGetPerspectiveTransform(corner, dstcornet, warp);
-// 	dst = TrWarpPerspective(img, w, h, warp);
-// 	cvReleaseMat(&warp);
-// 	return dst;
-// }
 Pix* TrPixCreateFromIplImage(IplImage *img) {
 	// create Pix from IplImage
 	Pix	   *pix = NULL;
@@ -778,7 +772,6 @@ char* TrTranslateInRect(tesseract::TessBaseAPI *api, tesseract::PageSegMode mode
 	// the first 4 * 32 bit is same for CvRect and Box
 	return TrTranslateInRect(api, mode, encode, (Box*)rect);
 }
-
 RESULT TechOcrCreatePix(IplImage *img, int w, int h, CvPoint2D32f *corner, Pix *&pix, CvMat *warp) {
 	IplImage *dst;
 	CvPoint2D32f dstcornet[4];
@@ -1028,9 +1021,7 @@ void TrGetCornerInMatch(CvSeq *feature, CvSeq *format, int maxfea, int maxfor, C
 		}
 	}
 }
-
 #define MIN_CONFIRM				6
-
 RESULT TechOcrFormatMostMatch(CvSeq *feature, CvSeq *&bestformat, int &maxmatch, CvMat *wrap) {
 	CvSeq *now;
 	RESULT result = RESULT_ERR;
@@ -1067,6 +1058,7 @@ RESULT TechOcrFormatMostMatch(CvSeq *feature, CvSeq *&bestformat, int &maxmatch,
 }
 
 
+
 #define ENLAGRE_X     16
 #define ENLARGE_Y     24
 #define MIN_WORD_SIZE 30
@@ -1081,7 +1073,6 @@ bool comBoxInRect(Box *box, CvRect *rect) {
 		return false;
 	}
 }
-
 CvRect comDetectWord(Pixa *pixa, CvRect *rect) {
 	int i;
 	int minx = rect->x + rect->width;
@@ -1110,9 +1101,61 @@ CvRect comDetectWord(Pixa *pixa, CvRect *rect) {
 		return cvRect(minx, miny, MAX(maxx - minx, 0), MAX(maxy - miny, 0));
 	}
 }
+RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvSeq *bestformat, CvSeq *content) {
+	int i;
+	int w, h;
+	IplImage *rotated;
+	Pix *pix;
+	tesseract::TessBaseAPI* api;
+	Boxa *boxa;
+	Pixa *pixa;
+	Box **box;
+	CvRect rect, rectenlarge;
+	CharFound* found, foundcontent;
+
+
+	TrGetFormatScreenRect(bestformat, w, h);
+	rotated = TrWarpPerspective(img, w, h, warp1, warp2);
+	pix = TrPixCreateFromIplImage(rotated);
+	api = TechOcrInitTessAPI();
+	api->SetImage(pix);
+	boxa = api->GetWords(&pixa);
+	tesseract::PageSegMode mode;
+	for (i = 0; i < bestformat->total; i++) {
+		found = (CharFound*)cvGetSeqElem(bestformat, i);
+		if (found->chartype != CHARTYPE_CONTENT_BLOCK && found->chartype != CHARTYPE_CONTENT_WORD) {
+			continue;
+		}
+		rect = comDetectWord(pixa, &(found->rect));
+		ComEnlargeRect(&rect, rect, ENLAGRE_X, ENLARGE_Y);
+		if (found->chartype == CHARTYPE_CONTENT_BLOCK) {
+			mode = tesseract::PSM_SINGLE_BLOCK;
+		}
+		else {
+			mode = tesseract::PSM_SINGLE_WORD;
+		}
+		char* str = TrTranslateInRect(api, mode, ENCODE_UTF8, &rect);
+		foundcontent.desc = str;
+		foundcontent.found = i;
+		Assign(foundcontent.rect, rect.x, rect.y, rect.width, rect.height);
+		cvSeqPush(content, &foundcontent);
+		//	found->desc = str;
+		std::cout << str << std::endl;
+	}
+	return RESULT_OK;
+
+// 	IplImage *d1, *d2;
+	// 	d1 = TrWarpPerspective(dst, dst->width, dst->height, warp1);
+// 	d2 = 
+	// 	api->SetRectangle(1000, 400, 2000, 3000); can add and should modify start x and y.
+
+	// 	CvMemStorage *storage;
+	// 	storage = GetGlobalStorage();
+	// 	feature = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
 
 
 
+}
 
 
 
