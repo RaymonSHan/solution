@@ -22,7 +22,7 @@
 #include "osdetect.h"
 
 #include "rcommon.h"
-#include "ProcessFormat.h"
+// #include "ProcessFormat.h"
 
 #define DEFAULT_LANGURE			"chi_sim"
 #define DEFALUT_COLOR			CV_RGB(221, 134, 212)
@@ -34,6 +34,8 @@
 #define THIN_WIDTH				1
 #define DEFAULT_WIDTH			3
 #define THICK_WIDTH				15
+
+#define TECHOCR_VERSION       "TechOcr V0.2"			// finish in Jun 11 '16
 
 // 返回点到直线的距离。x、y确定点。x1、y1，x2、y2确定直线。
 // 算法取自 http://blog.csdn.net/hhhh63/article/details/25030143。
@@ -242,38 +244,20 @@ RESULT TechOcrFormatMostMatch(CvSeq *feature, CvSeq *&bestformat, int &maxmatch,
 
 
 // 根据汉字横排的规律，横向仅需要部分匹配，纵向需要全部匹配。
-bool comBoxInRect(Box *box, CvRect *rect);
+bool ComBoxInRect(Box *box, CvRect *rect);
 
 // 根据标定的待识别区域，找到实际的文字位置。
-CvRect comDetectWord(Pixa *pixa, CvRect *rect);
+CvRect ComDetectWord(Pixa *pixa, CvRect *rect);
 
 // 第三步主要工作，根据待识别区域，识别文字。
 RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvSeq *bestformat, CvSeq *content);
 
-
-
-
-struct TrFeatureWordFound;
-bool ComMatchPlace(TrFeatureWordFound *one, TrFeatureWordFound *two);
-
+// 第三步最后工作，输出字符串
+RESULT TechOcrOutput(CvSeq *content, CvSeq *bestformat, char *&output);
 
 
 
 
-// following function is major for opencv
-IplImage* TrCreateMaxContour(IplImage *src, CvMemStorage *storage = NULL, 
-	int thresv = DEFAULT_THRESV_VALUE, double arate = MAX_CONTOUR_AREA_RATE, double lrate = MAX_CONTOUR_LENGTH_RATE);
-IplImage* TrCreateLine(IplImage *img, CvSeq *lines);
 
 
 
-
-// CvPoint TransformPoint(const CvPoint point, const CvMat *matrix) {
-// 	double coordinates[3] = { (double)point.x, (double)point.y, (double)1 };
-// 	CvMat originVector = cvMat(3, 1, CV_64F, coordinates);
-// 	CvMat transformedVector = cvMat(3, 1, CV_64F, coordinates);
-// 	cvMatMul(matrix, &originVector, &transformedVector);
-// 	CvPoint outputPoint = cvPoint((int)(cvmGet(&transformedVector, 0, 0) / cvmGet(&transformedVector, 2, 0)),
-// 		(int)(cvmGet(&transformedVector, 1, 0) / cvmGet(&transformedVector, 2, 0)));
-// 	return outputPoint;
-// };

@@ -1062,7 +1062,7 @@ RESULT TechOcrFormatMostMatch(CvSeq *feature, CvSeq *&bestformat, int &maxmatch,
 #define ENLAGRE_X     16
 #define ENLARGE_Y     24
 #define MIN_WORD_SIZE 30
-bool comBoxInRect(Box *box, CvRect *rect) {
+bool ComBoxInRect(Box *box, CvRect *rect) {
 	if (box->x + box->w > rect->x + MIN_WORD_SIZE &&
 		box->x < rect->x + rect->width - MIN_WORD_SIZE &&			// attention the condition
 		box->y > rect->y &&
@@ -1073,7 +1073,7 @@ bool comBoxInRect(Box *box, CvRect *rect) {
 		return false;
 	}
 }
-CvRect comDetectWord(Pixa *pixa, CvRect *rect) {
+CvRect ComDetectWord(Pixa *pixa, CvRect *rect) {
 	int i;
 	int minx = rect->x + rect->width;
 	int miny = rect->y + rect->height;
@@ -1082,7 +1082,7 @@ CvRect comDetectWord(Pixa *pixa, CvRect *rect) {
 	Box **box = pixa->boxa->box;
 	for (i = 0; i < pixa->n; i++) {
 		if ((*box)->w > MIN_WORD_SIZE && (*box)->h > MIN_WORD_SIZE &&
-			comBoxInRect(*box, rect)) {
+			ComBoxInRect(*box, rect)) {
 			minx = MIN(minx, (*box)->x);
 			miny = MIN(miny, (*box)->y);
 			maxx = MAX(maxx, ((*box)->x + (*box)->w));
@@ -1099,6 +1099,20 @@ CvRect comDetectWord(Pixa *pixa, CvRect *rect) {
 	}
 	else {
 		return cvRect(minx, miny, MAX(maxx - minx, 0), MAX(maxy - miny, 0));
+	}
+}
+void ComAddToJson(std::string &str, char *chars) {
+	int i;
+	char now;
+
+	for (i = 0; i < strlen(chars); i++) {
+		now = *(chars + i);
+		if (now > 0 && now < 0x20)
+			continue;
+		if (now == '\'' && now == '\\') {
+			str += '\\';
+		}
+		str += now;
 	}
 }
 RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvSeq *bestformat, CvSeq *content) {
@@ -1126,7 +1140,7 @@ RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvS
 		if (found->chartype != CHARTYPE_CONTENT_BLOCK && found->chartype != CHARTYPE_CONTENT_WORD) {
 			continue;
 		}
-		rect = comDetectWord(pixa, &(found->rect));
+		rect = ComDetectWord(pixa, &(found->rect));
 		ComEnlargeRect(&rect, rect, ENLAGRE_X, ENLARGE_Y);
 		if (found->chartype == CHARTYPE_CONTENT_BLOCK) {
 			mode = tesseract::PSM_SINGLE_BLOCK;
@@ -1156,159 +1170,37 @@ RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvS
 
 
 }
+RESULT TechOcrOutput(CvSeq *content, CvSeq *bestformat, char *&output) {
+	CharFound* found, *featurematch;
+	std::string outstring;
+	bool first = true;
+	char * ch, *gb;
+	int i, strlength;
 
-
-
-
-
-bool ComMatchPlace(TrFeatureWordFound *one, TrFeatureWordFound *two) {
-	double onex, oney, twox, twoy, disx, disy;
-	double minx, miny, maxx, maxy;
-	onex = (double)(one->origin.w) / (double)(one->found[0].w);
-	oney = (double)(one->origin.h) / (double)(one->found[0].h);
-	twox = (double)(two->origin.w) / (double)(two->found[0].w);
-	twoy = (double)(two->origin.h) / (double)(two->found[0].h);
-	minx = MIN(onex, twox);
-	miny = MIN(oney, twoy);
-	maxx = MAX(onex, twox);
-	maxy = MAX(oney, twoy);
-	if ((maxx - minx) / minx > DELTA_RATE || (maxy - miny) / miny > DELTA_RATE) {
-		return false;
-	}
-	if ((double)(abs(one->origin.x - two->origin.x)) / maxx / (1 + DELTA_RATE) - DELTA_DISTANCE >
-		(double)(abs(one->found[0].x - two->found[0].x)))
-		return false;
-	if ((double)(abs(one->origin.x - two->origin.x)) / minx / (1 - DELTA_RATE) + DELTA_DISTANCE <
-		(double)(abs(one->found[0].x - two->found[0].x)))
-		return false;
-	if ((double)(abs(one->origin.y - two->origin.y)) / maxy / (1 + DELTA_RATE) - DELTA_DISTANCE >
-		(double)(abs(one->found[0].y - two->found[0].y)))
-		return false;
-	if ((double)(abs(one->origin.y - two->origin.y)) / miny / (1 - DELTA_RATE) + DELTA_DISTANCE <
-		(double)(abs(one->found[0].y - two->found[0].y)))
-		return false;
-	return true;
-// 	disx = (double)(one->origin.x - two->origin.x) / (double)(one->found[0].x - two->found[0].x);
-// 	disy = (double)(one->origin.y - two->origin.y) / (double)(one->found[0].y - two->found[0].y);
-// 	minx = MIN(MIN(onex, twox), disx);
-// 	miny = MIN(MIN(oney, twoy), disy);
-// 	maxx = MAX(MAX(onex, twox), disx);
-// 	maxy = MAX(MAX(oney, twoy), disy);
-// 	rate = MAX(maxx / minx, maxy / miny);
-// 	return rate;
-}
-
-
-
-
-
-
-
-// following function is for translate data between leptonica and opencv
-
-
-IplImage* TrCreateMaxContour(IplImage *src, CvMemStorage *storage, int thresv, double arate, double lrate) {
-// src can be 8 or 24 bit, return image is 8 bit
-	CvSeq *conts;
-	CvSeq *nowcont;
-	IplImage *img1c, *dst;
-	CvMemStorage *nowstore;
-	double arearate, area;
-	double lenrate, len;
-
-	if (!src) {
-		return NULL;
-	}
-	if (!storage) {
-		nowstore = cvCreateMemStorage(0);
-	}
-	else {
-		nowstore = storage;
-	}
-	conts = cvCreateSeq(CV_SEQ_ELTYPE_POINT, sizeof(CvSeq), sizeof(CvPoint), nowstore);
-
-	img1c = TrImageThreshold(src, 9, 9, thresv);	dst = cvCreateImage(cvSize(src->width, src->height), IPL_DEPTH_8U, 1);
-	cvZero(dst);
-
-	cvFindContours(img1c, nowstore, &conts, sizeof(CvContour),
-		CV_RETR_TREE, CV_CHAIN_APPROX_NONE, cvPoint(0, 0));
-
-	arearate = src->width * src->height * arate;
-	lenrate = MIN(src->width, src->height) * lrate;
-
-	for (nowcont = conts; nowcont; nowcont = nowcont->h_next) {
-		len = fabs(cvArcLength(nowcont));
-		area = fabs(cvContourArea(nowcont));
-		if (area > arearate || len > lenrate) {
-			cvDrawContours(dst, nowcont, CV_RGB(255,255,255), CV_RGB(255, 255, 255), 0, DEFAULT_WIDTH);
+	outstring = "{\"version\":\"";
+	outstring += TECHOCR_VERSION;
+	outstring += "\", \"result\":[";
+	for (i = 0; i < content->total; i++) {
+		found = (CharFound*)cvGetSeqElem(content, i);
+		featurematch = (CharFound*)cvGetSeqElem(bestformat, found->found);
+		if (first) {
+			first = false;
 		}
-		cvClearSeq(nowcont);
+		else {
+			outstring += ",";
+		}
+		outstring += "{\"name\":\"";
+		ComAddToJson(outstring, (char*)featurematch->desc);
+		outstring += "\",\"value\":\"";
+		ComAddToJson(outstring, (char*)found->desc);
+		outstring += "\"}";
+		delete[] featurematch->desc;
+		delete[] found->desc;
 	}
-	cvReleaseImage(&img1c);
-	if (!storage) {
-		cvReleaseMemStorage(&nowstore);
-	}
-	return dst;
+	outstring += "]}";
+	strlength = outstring.length();
+	output = new char[strlength + 10];
+	strncpy(output, outstring.c_str(), strlength);
+	output[strlength] = 0;
+	return RESULT_OK;
 }
-
-IplImage* TrCreateLine(IplImage *img, CvSeq *lines) {
-	IplImage *dst;
-	dst = cvCreateImage(cvSize(img->width, img->height), IPL_DEPTH_8U, 1);
-// 	cvSet(dst, CV_RGB(255, 255, 255));
-// 	trDrawLines(dst, lines, false, &CV_RGB(0, 0, 0), DEFAULT_WIDTH, &CV_RGB(0, 0, 0));
-	cvSet(dst, CV_RGB(0, 0, 0));
-	ComDrawLines(dst, lines, false, &CV_RGB(255, 255, 255), DEFAULT_WIDTH, &CV_RGB(255, 255, 255));
-
-	return dst;
-}
-
-// CvSeq* TrCreateHoughLines(IplImage *src, CvMemStorage *storage) {
-// // here src MUST be one channel
-// //	CvMemStorage* storage = cvCreateMemStorage(0);
-// 	CvSeq* lines = 0;
-// 	double rho = 3;
-// // 	double theta = CV_PI / 180;
-// // 	double threshold = 30;
-// // 	double min_length = 200;//CV_HOUGH_PROBABILISTIC  
-// // 	double sepration_connection = 4;//CV_HOUGH_PROBABILISTIC  
-// 	double theta = 2*CV_PI  / 180;
-// // 	double threshold = 100;
-// // 	double min_length = 150;//CV_HOUGH_PROBABILISTIC  
-// // 	double sepration_connection = 40;//CV_HOUGH_PROBABILISTIC  
-// 
-// 	int size = MAX(src->width, src->height);
-// 	double threshold = (double)size / 4;
-// 	double min_length = (double)size / 3;
-// 	double sepration_connection = (double)size / 40;
-// 
-// 
-// 
-// 
-// 									//binary image is needed.  
-// 	lines = cvHoughLines2(
-// 		src,
-// 		storage,
-// 		CV_HOUGH_PROBABILISTIC,
-// 		rho,
-// 		theta,
-// 		threshold,
-// 		min_length,
-// 		sepration_connection);
-// 
-//	cvReleaseMemStorage(&storage);
-// 	return lines;
-// }
-
-// following function is major for tesseract
-
-
-
-
-
-
-
-// above function is inter use
-// following function is declare outside
-
-// here lines is created by cvHoughLines2
-
