@@ -13,7 +13,7 @@ void pocPixCreateFromIplImage(char *src, char *dst) {
 //	read as Pix, for confirm the data struct
 
 	Pix* pixt;
-	pixt = trPixCreateFromIplImage(img);
+	pixt = TrPixCreateFromIplImage(img);
 	if (pixt) {
 		pixWriteAutoFormat(dst, pixt);
 		pixDestroy(&pixt);
@@ -28,10 +28,10 @@ void pocRotateImage(char *src, int angle, bool clockwise) {
 	if (!img) {
 		return;
 	}
-	dst = trRotateImage(img, 90, false);
+	dst = ComRotateImage(img, 90, false);
 	cvSaveImage(src, dst);
 
-	trShowImage("dst", dst);
+	ComShowImage("dst", dst);
 	cvWaitKey();
 	cvReleaseImage(&dst);
 	cvReleaseImage(&img);
@@ -41,9 +41,9 @@ void pocFindMaxRect(char *src) {
 	IplImage *img, *dst;
 
 	img = cvLoadImage(src, 0);     // 0 for is gray
-	dst = trCreateMaxContour(img);
-	trShowImage("src", img);
-	trShowImage("dst", dst);
+	dst = TrCreateMaxContour(img);
+	ComShowImage("src", img);
+	ComShowImage("dst", dst);
 	cvWaitKey();
 	cvReleaseImage(&dst);
 	cvReleaseImage(&img);
@@ -60,7 +60,7 @@ void pocFindHoughLines(char *src) {
 //  	cvCanny(img, mimg, 50, 150, 3);//±ßÔµ¼ì²â  
 // 	cvPyrMeanShiftFiltering(img, mimg, 3, 15);
 
-	dst = trCreateMaxContour(mimg);
+	dst = TrCreateMaxContour(mimg);
 	storage = cvCreateMemStorage(0);
 
 	int size = MAX(img->width, img->height);
@@ -68,14 +68,14 @@ void pocFindHoughLines(char *src) {
 	lines = cvHoughLines2(dst, storage, CV_HOUGH_PROBABILISTIC,
 		size / 1000, CV_PI / 180,
 		(double)size / 8, (double)size / 6, (double)size / 40);
- 	trDrawLines(img, lines, true);
-	dst2 = trCreateLine(dst/* only for size**/, lines);
+ 	ComDrawLines(img, lines, true);
+	dst2 = TrCreateLine(dst/* only for size**/, lines);
 
 
-	trShowImage("src", img);
-	trShowImage("mimg", mimg);
-	trShowImage("dst", dst);
-	trShowImage("dst2", dst2);
+	ComShowImage("src", img);
+	ComShowImage("mimg", mimg);
+	ComShowImage("dst", dst);
+	ComShowImage("dst2", dst2);
 
 	cvWaitKey();
 	cvReleaseImage(&dst);
@@ -99,22 +99,22 @@ void pocFindFeatureWords(char *src) {
 	if (!img) {
 		return;
 	}
-	pix = trPixCreateFromIplImage(img);
-	api = trInitTessAPI();
+	pix = TrPixCreateFromIplImage(img);
+	api = TrInitTessAPI();
 	api->SetImage(pix);
 	boxa = api->GetConnectedComponents(&pixa);
 	//boxa = api->GetWords(&pixa);
-	boxc = trChoiceBoxInBoxa(boxa, pix);
+	boxc = TrChoiceBoxInBoxa(boxa, pix);
 
 	box = boxc->box;
 	for (i = 0; i < boxc->n; i++) {
-		str = trTranslateInRect(*box, api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK);
+		str = TrTranslateInRect(*box, api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK);
 		OUTPUTBOX(*box, str);
 		delete[] str;
 		box++;
 	}
-	trDrawBoxs(img, boxc);
-	trShowImage("src", img);
+	ComDrawBoxs(img, boxc);
+	ComShowImage("src", img);
 	cvWaitKey();
 
 	boxaDestroy(&boxa);
@@ -122,7 +122,7 @@ void pocFindFeatureWords(char *src) {
 
 	pixaDestroy(&pixa);
 
-	trExitTessAPI(api);
+	TrExitTessAPI(api);
 	pixDestroy(&pix);
 	cvReleaseImage(&img);
 
@@ -141,7 +141,7 @@ void pocFindFeatureWordsInClass(char *src) {
 	int i;
 	char *str;
 	OcrFeatureWordsFound *found;
-	trFeatureWordFound *result;
+	TrFeatureWordFound *result;
 	int count = 0;
 
 	ocrInitBusinessLicense();
@@ -150,20 +150,20 @@ void pocFindFeatureWordsInClass(char *src) {
 	if (!img) {
 		return;
 	}
-	pix = trPixCreateFromIplImage(img);
-	api = trInitTessAPI();
+	pix = TrPixCreateFromIplImage(img);
+	api = TrInitTessAPI();
 	api->SetImage(pix);
 	boxa = api->GetConnectedComponents(&pixa);
 	//boxa = api->GetWords(&pixa);
-	boxc = trChoiceBoxInBoxa(boxa, pix);
+	boxc = TrChoiceBoxInBoxa(boxa, pix);
 	found = new OcrFeatureWordsFound;
 
 	found->InitFound(&BusinessLicense);
 	box = boxc->box;
 	for (i = 0; i < boxc->n; i++) {
 		Box enlarge;
-		comEnlargeBox(*box, enlarge, 1);
-		str = trTranslateInRect(&enlarge, api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK);
+		ComEnlargeBox(*box, enlarge, 1);
+		str = TrTranslateInRect(&enlarge, api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK);
 // 		str = trTranslateInRect(*box, api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK);
 		result = found->AddFound(*box, str);
 		if (result) {
@@ -187,7 +187,7 @@ void pocFindFeatureWordsInClass(char *src) {
 	}
 	if (start < found->GetNumber()) {
 		// have found feature
-		trDrawBoxs(img, boxf);
+		ComDrawBoxs(img, boxf);
 	}
 	CvPoint2D32f srcTri[4], desTri[4];
 	CvMat *warpMat;
@@ -200,7 +200,7 @@ void pocFindFeatureWordsInClass(char *src) {
 	cvReleaseMat(&warpMat);
 
  //	trDrawBoxs(img, boxc, &cvScalar(232,164,74));
-	trShowImage("src", img);
+	ComShowImage("src", img);
 	cvWaitKey();
 
 	boxaDestroy(&boxa);
@@ -209,12 +209,40 @@ void pocFindFeatureWordsInClass(char *src) {
 	pixaDestroy(&pixa);
 	delete found;			// found should delete after destroy boxf
 
-	trExitTessAPI(api);
+	TrExitTessAPI(api);
 	pixDestroy(&pix);
 	cvReleaseImage(&img);
 
 }
 
+void pocApproximateLine(char *filename) {
+	IplImage *srcimg, *thresimg, *contimg, *cloneimg;
+	CvMemStorage *storage;
+	CvSeq *lines, *linesappr;
+	CvSeq *conners;
+
+	storage = cvCreateMemStorage(0);
+	srcimg = cvLoadImage(filename, 1);
+	thresimg = TrImageThreshold(srcimg);
+	contimg = TrContourDraw(thresimg);
+	lines = TrCreateHoughLines(contimg, storage);
+	linesappr = TrCreateApproximateLines(lines, storage);
+
+	if (linesappr->total != 4) {
+		// match four lines
+	}
+	conners = TrGetIntersection(linesappr, storage, &cvPoint2D32f(thresimg->width/2, thresimg->height/2));
+	cloneimg = cvCloneImage(srcimg);
+	ComDrawLines(cloneimg, lines, true);
+	ComShowImage("img", cloneimg);
+	ComShowImage("cont", contimg);
+	cvWaitKey();
+	cvReleaseMemStorage(&storage);
+	cvReleaseImage(&cloneimg);
+	cvReleaseImage(&contimg);
+	cvReleaseImage(&thresimg);
+	cvReleaseImage(&srcimg);
+}
 
 void pocShowImage(char *src) {
 	IplImage *img, *img1c;//, *imgerode;
@@ -255,22 +283,22 @@ void pocShowImage(char *src) {
 //  	cvDilate(img, img, NULL, 5);
 // 	cvErode(img, img, NULL, 5);
 
-	img1c = trCloneImg1c(img, true, 160);
+	img1c = TrImageThreshold(img);
 
-	pix = trPixCreateFromIplImage(img1c);
-	api = trInitTessAPI();
+	pix = TrPixCreateFromIplImage(img1c);
+	api = TrInitTessAPI();
 	api->SetImage(pix);
 // 	boxa = api->GetConnectedComponents(&pixa);
 	boxa = api->GetWords(&pixa);
 
 
 // 	trDrawLines(img, lines, true);
-	trDrawBoxs(img, boxa);
-	trShowImage("src", img);
-	trShowImage("1c", img1c);
+	ComDrawBoxs(img, boxa);
+	ComShowImage("src", img);
+	ComShowImage("1c", img1c);
 	cvWaitKey();
 
-	trExitTessAPI(api);
+	TrExitTessAPI(api);
 	pixDestroy(&pix);
 
 // 	cvReleaseMemStorage(&storage);
@@ -282,7 +310,7 @@ void pocShowImage(char *src) {
 }
 
 void pocPointToLineDist(void) {
-	double aa = comPointToLineDist(0, 0, 0, 1, 1, 0);
+	double aa = ComPointToLineDist(0, 0, 0, 1, 1, 0);
 	return;
 }
 
@@ -293,7 +321,7 @@ void pocIsIntersect(void) {
 	a2 = cvPoint(2, 2);
 	b1 = cvPoint(0, 5);
 	b2 = cvPoint(4, 1);
-	RESULT result = comIsIntersect(&a1, &a2, &b1, &b2, c1);
+	bool result = ComIsLineIntersect(&a1, &a2, &b1, &b2, c1);
 	return;
 }
 
@@ -311,7 +339,7 @@ void pocNewContour(char *src) {
 	mimg = cvCloneImage(img);
 
 	cvPyrMeanShiftFiltering(img, mimg, 3, 15);
-	trShowImage("src", img);
-	trShowImage("mean", mimg);
+	ComShowImage("src", img);
+	ComShowImage("mean", mimg);
 	cvWaitKey();
 }

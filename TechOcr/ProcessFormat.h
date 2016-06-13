@@ -14,14 +14,14 @@ typedef struct trFeatureWord {
 	trFeatureWord *h_next;
 }trFeatureWord;
 
-typedef struct trFeatureWordFound {
+typedef struct TrFeatureWordFound {
 	char word[WORD_LENGTH];
 	Box origin;
-	trFeatureWordFound *h_next;
+	TrFeatureWordFound *h_next;
 	volatile MYINT nowFound;
 	bool match;
 	Box found[MAX_FOUND];
-}trFeatureWordFound;
+}TrFeatureWordFound;
 
 // Maybe NOT use
 // class OcrFeatureWords {
@@ -52,7 +52,7 @@ public:
 class OcrFeatureWordsFound {
 private:
 	volatile MYINT nowFeature;
-	trFeatureWordFound allFeature[MAX_WORDS];
+	TrFeatureWordFound allFeature[MAX_WORDS];
 public:
 	OcrFeatureWordsFound() {
 		nowFeature = 0;
@@ -61,7 +61,7 @@ public:
 	MYINT GetNumber() {
 		return nowFeature;
 	}
-	trFeatureWordFound* AddFound(Box *box, char *word);
+	TrFeatureWordFound* AddFound(Box *box, char *word);
 	Boxa* ReturnFound(int &start, int &match);
 	RESULT ReturnCorner(CvPoint2D32f *csrc, CvPoint2D32f *cdst);		// both pointer to CvPoint[4];
 };

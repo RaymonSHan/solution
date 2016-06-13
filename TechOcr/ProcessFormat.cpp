@@ -30,7 +30,7 @@ trFeatureWord* OcrFormat::AddFeatureWord(Box *box, char *word, trFeatureWord *ne
 RESULT OcrFeatureWordsFound::InitFound(OcrFormat *format) {
 	int i, j, delta;
 	trFeatureWord *baseword, *nowword;
-	trFeatureWordFound *basefound, *nowfound;
+	TrFeatureWordFound *basefound, *nowfound;
 
 	nowFeature = format->nowFeature;
 	if (nowFeature >= MAX_WORDS) {
@@ -53,10 +53,10 @@ RESULT OcrFeatureWordsFound::InitFound(OcrFormat *format) {
 	}
 }
 
-trFeatureWordFound* OcrFeatureWordsFound::AddFound(Box *box, char *word) {
+TrFeatureWordFound* OcrFeatureWordsFound::AddFound(Box *box, char *word) {
 	int i;
 	MYINT now;
-	trFeatureWordFound *nowword;
+	TrFeatureWordFound *nowword;
 
 	for (i = 0; i < nowFeature; i++) {
 		nowword = &allFeature[i];
@@ -74,7 +74,7 @@ trFeatureWordFound* OcrFeatureWordsFound::AddFound(Box *box, char *word) {
 
 Boxa* OcrFeatureWordsFound::ReturnFound(int &start, int &match) {
 	Boxa *boxa;
-	trFeatureWordFound *nowword, *twoword;
+	TrFeatureWordFound *nowword, *twoword;
 	int i, j;
 	match = 0;
 	double rate, maxrate = 0.0;
@@ -100,7 +100,7 @@ Boxa* OcrFeatureWordsFound::ReturnFound(int &start, int &match) {
 	for (i = i + 1; i < nowFeature; i++) {
 		twoword = &allFeature[i];
 		if (twoword->nowFound == 1) {
-			if (comMatchPlace(nowword, twoword))
+			if (ComMatchPlace(nowword, twoword))
 			{
 				boxaAddBox(boxa, &(twoword->found[0]), L_CLONE);
 				twoword->match = true;
