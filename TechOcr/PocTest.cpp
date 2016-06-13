@@ -100,11 +100,11 @@ void pocFindFeatureWords(char *src) {
 		return;
 	}
 	pix = TrPixCreateFromIplImage(img);
-	api = TrInitTessAPI();
-	api->SetImage(pix);
-	boxa = api->GetConnectedComponents(&pixa);
+	api = TrInitTessAPI(pix);
+// 	api->SetImage();
+// 	boxa = api->GetConnectedComponents(&pixa);
 	//boxa = api->GetWords(&pixa);
-	boxc = TrChoiceBoxInBoxa(boxa, pix);
+	boxc = TrChoiceBoxInBoxa(api, pix);
 
 	box = boxc->box;
 	for (i = 0; i < boxc->n; i++) {
@@ -151,11 +151,11 @@ void pocFindFeatureWordsInClass(char *src) {
 		return;
 	}
 	pix = TrPixCreateFromIplImage(img);
-	api = TrInitTessAPI();
-	api->SetImage(pix);
-	boxa = api->GetConnectedComponents(&pixa);
+	api = TrInitTessAPI(pix);
+// 	api->SetImage(pix);
+// 	boxa = api->GetConnectedComponents(&pixa);
 	//boxa = api->GetWords(&pixa);
-	boxc = TrChoiceBoxInBoxa(boxa, pix);
+	//boxc = TrChoiceBoxInBoxa(api, pix);
 	found = new OcrFeatureWordsFound;
 
 	found->InitFound(&BusinessLicense);
@@ -212,35 +212,63 @@ void pocFindFeatureWordsInClass(char *src) {
 	TrExitTessAPI(api);
 	pixDestroy(&pix);
 	cvReleaseImage(&img);
-
 }
 
 void pocApproximateLine(char *filename) {
-	IplImage *srcimg, *thresimg, *contimg, *cloneimg;
+	IplImage *srcimg, *thresimg, *contimg, *cloneimg = NULL;
 	CvMemStorage *storage;
 	CvSeq *lines, *linesappr;
 	CvSeq *conners;
+	bool havelarge = false;
+	int loop = 1;
+	IplImage *doingimg, *olddoingimg;
 
 	storage = cvCreateMemStorage(0);
 	srcimg = cvLoadImage(filename, 1);
-	thresimg = TrImageThreshold(srcimg);
-	contimg = TrContourDraw(thresimg);
-	lines = TrCreateHoughLines(contimg, storage);
-	linesappr = TrCreateApproximateLines(lines, storage);
 
-	if (linesappr->total != 4) {
-		// match four lines
+	doingimg = cvCloneImage(srcimg);
+	while (!havelarge && loop) {
+		olddoingimg = doingimg;
+		thresimg = TrImageThreshold(doingimg);
+		doingimg = TrContourDraw(thresimg, havelarge);
+		loop--;
+		if (havelarge || !loop) {
+			break;
+		}
+		else {
+			cvReleaseImage(&olddoingimg);
+			cvReleaseImage(&thresimg);
+		}
 	}
-	conners = TrGetIntersection(linesappr, storage, &cvPoint2D32f(thresimg->width/2, thresimg->height/2));
+	contimg = doingimg;
+
+	lines = TrCreateHoughLines(contimg, storage);
+	linesappr = TrAggregationLines(lines, storage);
+	conners = TrGetFourCorner(linesappr, storage, &cvPoint2D32f(srcimg->width / 2, srcimg->height / 2));
+
 	cloneimg = cvCloneImage(srcimg);
+	// 	if (linesappr->total != 4) {
+// 	for (int i = 0; i < linesappr->total; i++) {
+// 		float *p = (float*)cvGetSeqElem(linesappr, i);
+// 		CvPoint p1 = cvPoint((int)(*(p + 4)), (int)(*(p + 5)));
+// 		CvPoint p2 = cvPoint((int)(*(p + 6)), (int)(*(p + 7)));
+// 		cvLine(cloneimg, p1, p2, CV_RGB(23, 132, 231), 3, 8);
+// 		ComDrawLineForFitLine(cloneimg, p, &CV_RGB(23, 132, 231));
+
+// 	}
+	// match four lines
+	// 	}
+
 	ComDrawLines(cloneimg, lines, true);
 	ComShowImage("img", cloneimg);
 	ComShowImage("cont", contimg);
 	cvWaitKey();
 	cvReleaseMemStorage(&storage);
-	cvReleaseImage(&cloneimg);
+	if (cloneimg)
+		cvReleaseImage(&cloneimg);
 	cvReleaseImage(&contimg);
 	cvReleaseImage(&thresimg);
+	cvReleaseImage(&olddoingimg);
 	cvReleaseImage(&srcimg);
 }
 
@@ -286,8 +314,8 @@ void pocShowImage(char *src) {
 	img1c = TrImageThreshold(img);
 
 	pix = TrPixCreateFromIplImage(img1c);
-	api = TrInitTessAPI();
-	api->SetImage(pix);
+	api = TrInitTessAPI(pix);
+// 	api->SetImage(pix);
 // 	boxa = api->GetConnectedComponents(&pixa);
 	boxa = api->GetWords(&pixa);
 

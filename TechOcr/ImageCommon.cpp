@@ -8,6 +8,10 @@ double ComPointToLineDist(int x, int y, int x1, int y1, int x2, int y2) {
 double ComPointToLineDist(CvPoint *p, CvPoint *p1, CvPoint *p2) {
 	return ComPointToLineDist(p->x, p->y, p1->x, p1->y, p2->x, p2->y);
 }
+double ComPointToLineDist(float *p, float *l) {
+	return ComPointToLineDist((int)(*(p + 2)), (int)(*(p + 3)),
+		(int)(*(l + 2)), (int)(*(l + 3)), (int)(*(l + 2) + *(l + 0) * 1000), (int)(*(l + 3) + *(l + 1) * 1000));
+}
 bool ComIsRectIntersect(Box *b1, Box *b2, int space) {
 	int minx, maxx, miny, maxy;
 	minx = MAX(b1->x - space, b2->x - space);
@@ -164,6 +168,19 @@ void ComDrawLines(IplImage *img, CvSeq *lines, bool drawpoint, CvScalar *color, 
 		}
 	}
 }
+void ComDrawLineForFitLine(IplImage *img, float *line, CvScalar *color, int width) {
+	CvPoint p1 = cvPoint((int)(*(line + 2) + *(line + 0) * 1000), *(line + 3) + *(line + 1) * 1000);
+	CvPoint p2 = cvPoint((int)(*(line + 2) - *(line + 0) * 1000), *(line + 3) - *(line + 1) * 1000);
+	cvLine(img, p1, p2, *color, width);
+}
+void ComDrawLineForFitLine(IplImage *img, CvSeq *lines, CvScalar *color, int width) {
+	int		i;
+	for (i = 0; i < lines->total; i++)
+	{
+		float* line = (float*)cvGetSeqElem(lines, i);
+		ComDrawLineForFitLine(img, line, color, width);
+	}
+}
 void ComShowImage(char *name, IplImage *img) {
 	RECT	rect;
 	HWND	hWnd;
@@ -193,20 +210,27 @@ void ComShowImage(char *name, IplImage *img) {
 		cvShowImage(name, img);
 	}
 }
-static int CompareDistance(void* _a, void* _b, void* userdata)
-{
-	CvPoint2D32f* p1 = (CvPoint2D32f*)_a;
-	CvPoint2D32f* p2 = (CvPoint2D32f*)_b;
-	CvPoint2D32f* pc = (CvPoint2D32f*)userdata;
+static int ComparePoint(void* _a, void* _b, void* userdata) {
+	CvPoint *p1 = (CvPoint*)_a;
+	CvPoint *p2 = (CvPoint*)_b;
+	CvPoint2D32f *p = (CvPoint2D32f*)userdata;
+
+	float d1 = p->x * p1->x + p->y * p1->y;
+	float d2 = p->x * p2->x + p->y * p2->y;
+	return d1 > d2 ? 1 : d1 < d2 ? -1 : 0;
+}
+static int CompareDistance(void* _a, void* _b, void* userdata) {
+	CvPoint2D32f *p1 = (CvPoint2D32f*)_a;
+	CvPoint2D32f *p2 = (CvPoint2D32f*)_b;
+	CvPoint2D32f *pc = (CvPoint2D32f*)userdata;
 
 	float d1 = (p1->x - pc->x) * (p1->x - pc->x) + (p1->y - pc->y) * (p1->y - pc->y);
 	float d2 = (p2->x - pc->x) * (p2->x - pc->x) + (p2->y - pc->y) * (p2->y - pc->y);
 	return d1 > d2 ? 1 : d1 < d2 ? -1 : 0;
 }
-static int CompareClockwise(const void *_a, const void *_b, void *userdata)
-{
-	CvPoint2D32f* a = (CvPoint2D32f*)_a;
-	CvPoint2D32f* b = (CvPoint2D32f*)_b;
+static int CompareClockwise(const void *_a, const void *_b, void *userdata) {
+	CvPoint2D32f *a = (CvPoint2D32f*)_a;
+	CvPoint2D32f *b = (CvPoint2D32f*)_b;
 	CvPoint2D32f *cog = (CvPoint2D32f *)userdata;
 
 	float aa = cvFastArctan((a->y) - cog->y, cog->x - (a->x));
@@ -214,7 +238,7 @@ static int CompareClockwise(const void *_a, const void *_b, void *userdata)
 	return(aa < ba ? 1 : aa > ba ? -1 : 0);
 }
 IplImage* TrImageThreshold(IplImage *src, int gaussianx, int gaussiany, int thresvalue, int adaptivesize, int adaptivedelta) {
-	IplImage	*dst;
+	IplImage *dst;
 
 	if (!src) {
 		return NULL;
@@ -232,14 +256,16 @@ IplImage* TrImageThreshold(IplImage *src, int gaussianx, int gaussiany, int thre
 		CV_THRESH_BINARY_INV, adaptivesize, adaptivedelta);
 	return dst;
 }
-IplImage* TrContourDraw(IplImage *src, double arate, double lrate) {
+IplImage* TrContourDraw(IplImage *src, bool &havelarge, double arate, double lrate) {
 	CvSeq *conts;
 	CvSeq *nowcont;
+	CvSeq *hull;
 	IplImage *proc, *dst;
 	CvMemStorage *nowstore;
 	double arearate, area;
 	double lenrate, len;
-
+	int linewidth = (int)(MIN(src->width, src->height) / 300) + 1;
+	havelarge = false;
 	if (!src) {
 		return NULL;
 	}
@@ -254,10 +280,21 @@ IplImage* TrContourDraw(IplImage *src, double arate, double lrate) {
 	arearate = src->width * src->height * arate;
 	lenrate = MIN(src->width, src->height) * lrate;
 	for (nowcont = conts; nowcont; nowcont = nowcont->h_next) {
-		len = fabs(cvArcLength(nowcont));
 		area = fabs(cvContourArea(nowcont));
-		if (area > arearate || len > lenrate) {
-			cvDrawContours(dst, nowcont, CV_RGB(255, 255, 255), CV_RGB(255, 255, 255), 0, DEFAULT_WIDTH);
+		if (area > arearate) {
+			havelarge = true;
+// I am NOT sure, should add hull ?
+//			hull = cvConvexHull2(nowcont, nowstore, CV_CLOCKWISE, 1 /* MUST BE 1*/);
+//			cvDrawContours(dst, hull, CV_RGB(255, 255, 255), CV_RGB(255, 255, 255), 0, linewidth /*THICK_WIDTH*/);
+			cvDrawContours(dst, nowcont, CV_RGB(255, 255, 255), CV_RGB(255, 255, 255), 0, linewidth /*THICK_WIDTH*/);
+		}
+	}
+	if (!havelarge) {
+		for (nowcont = conts; nowcont; nowcont = nowcont->h_next) {
+			len = fabs(cvArcLength(nowcont));
+			if (len > lenrate) {
+				cvDrawContours(dst, nowcont, CV_RGB(255, 255, 255), CV_RGB(255, 255, 255), 0, linewidth /*THICK_WIDTH*/);
+			}
 		}
 	}
 	cvReleaseMemStorage(&nowstore);
@@ -278,7 +315,7 @@ CvSeq* TrCreateHoughLines(IplImage *src, CvMemStorage *storage, double threshold
 		threshold, min_length, sepration_connection);
 	return lines;
 }
-CvSeq* TrCreateApproximateLines(CvSeq *lines, CvMemStorage *storage, double thresholdrate) {
+CvSeq* TrAggregationLines(CvSeq *lines, CvMemStorage *storage, double thresholdrate) {
 	CvSeq *cstart = NULL, *cend = NULL;
 	CvSeq *cnow = NULL;
 	CvSeq *output = NULL;
@@ -286,7 +323,7 @@ CvSeq* TrCreateApproximateLines(CvSeq *lines, CvMemStorage *storage, double thre
 	CvPoint *line;
 	CvPoint *point;
 	double d1, d2;
-	float fitline[4];
+	float fitline[8];
 
 	if (!lines || lines->total < 4) {
 		return NULL;
@@ -299,7 +336,7 @@ CvSeq* TrCreateApproximateLines(CvSeq *lines, CvMemStorage *storage, double thre
 			point = (CvPoint*)cvGetSeqElem(cnow, 0);
 			d1 = ComPointToLineDist(line, point, point + 1);
 			d2 = ComPointToLineDist(line + 1, point, point + 1);
-			if (d1 * d2 < thresholdrate) {						// two line is approximate
+			if (d1 + d2 < thresholdrate) {						// two line is approximate
 				cvSeqPush(cnow, line);
 				cvSeqPush(cnow, line + 1);
 				break;
@@ -329,7 +366,6 @@ CvSeq* TrCreateApproximateLines(CvSeq *lines, CvMemStorage *storage, double thre
 		for (i = 0; i < cnow->total; i += 2) {
 			line1 = (CvPoint*)cvGetSeqElem(cnow, i);
 			line2 = (CvPoint*)cvGetSeqElem(cnow, i + 1);
-
 			std::cout << line1->x << ", " << line1->y << ", TO " << line2->x << ", " << line2->y << std::endl;
 		}
 		std::cout << std::endl << std::endl;
@@ -338,8 +374,9 @@ CvSeq* TrCreateApproximateLines(CvSeq *lines, CvMemStorage *storage, double thre
 
 	cnow = cstart;
 	output = cvCreateSeq(CV_32FC4, sizeof(CvSeq), sizeof(float) * 4, storage);
+	// 四个浮点数为cvFitLines()的返回格式。
 	while (cnow) {
-		cvFitLine(cnow, CV_DIST_L1, 1, 0.001, 0.001, fitline);
+		cvFitLine(cnow, CV_DIST_L2, 1, 0.001, 0.001, fitline);
 		cvSeqPush(output, fitline);
 // 		std::cout << fitline[0] << ", " << fitline[1] << ", " << fitline[2] << ", " << fitline[3] << std::endl;
 		cnow = cnow->h_next;
@@ -350,58 +387,164 @@ CvSeq* TrCreateApproximateLines(CvSeq *lines, CvMemStorage *storage, double thre
 	}
 	return output;
 }
-CvSeq* TrGetIntersection(CvSeq *fitlines, CvMemStorage *storage, CvPoint2D32f *center) {
+static void pushMaxLine(CvSeq *line, CvSeq *output) {
 	int i, j;
-	float *l0, *l1, *l2, *l3;
+	float *l1, *l2;
+	double dist, maxdist = 0;
+	int maxi, maxj;
+
+	for (i = 0; i < line->total; i++) {
+		l1 = (float*)cvGetSeqElem(line, i);
+		for (j = i + 1; j < line->total; j++) {
+			l2 = (float*)cvGetSeqElem(line, j);
+			dist = ComPointToLineDist(l1, l2);
+			if (dist > maxdist) {
+				maxdist = dist;
+				maxi = i;
+				maxj = j;
+			}
+		}
+	}
+	l1 = (float*)cvGetSeqElem(line, maxi);
+	l2 = (float*)cvGetSeqElem(line, maxj);
+	cvSeqPush(output, l1);
+	cvSeqPush(output, l2);
+}
+CvSeq* TrChoiceLinesInFitLines(CvSeq *lines, CvMemStorage *storage) {
+	CvSeq *hlines, *vlines;
+	CvSeq *output;
+	int i;
+	float *line;
+
+	hlines = cvCreateSeq(CV_32FC4, sizeof(CvSeq), sizeof(float) * 4, storage);
+	vlines = cvCreateSeq(CV_32FC4, sizeof(CvSeq), sizeof(float) * 4, storage);
+	output = cvCreateSeq(CV_32FC4, sizeof(CvSeq), sizeof(float) * 4, storage);
+	for (i = 0; i < lines->total; i++) {
+		line = (float*)cvGetSeqElem(lines, i);
+		if (abs(*line) > abs(*(line + 1))) cvSeqPush(hlines, line);
+		else cvSeqPush(vlines, line);
+	}
+	pushMaxLine(hlines, output);
+	pushMaxLine(vlines, output);
+	return output;
+}
+CvSeq* TrGetFourCorner(CvSeq *fitlines, CvMemStorage *storage, CvPoint2D32f *center) {
+	int i, j, total;
+	float *l0, *l1;
 	CvSeq *output;
 	CvPoint2D32f p;
 
-	if (!fitlines || fitlines->total != 4) {
+	if (!fitlines) {
 		return NULL;
 	}
-	l0 = (float*)cvGetSeqElem(fitlines, 0);
-	l1 = (float*)cvGetSeqElem(fitlines, 1);
-	l2 = (float*)cvGetSeqElem(fitlines, 2);
-	l3 = (float*)cvGetSeqElem(fitlines, 3);
-
+	total = fitlines->total;
 	output = cvCreateSeq(CV_32FC2, sizeof(CvSeq), sizeof(CvPoint2D32f), storage);
 
-	if (ComIsLineIntersect(l0, l1, p))
-		cvSeqPush(output, &p);
-	if (ComIsLineIntersect(l0, l2, p))
-		cvSeqPush(output, &p);
-	if (ComIsLineIntersect(l0, l3, p))
-		cvSeqPush(output, &p);
-	if (ComIsLineIntersect(l1, l2, p))
-		cvSeqPush(output, &p);
-	if (ComIsLineIntersect(l1, l3, p))
-		cvSeqPush(output, &p);
-	if (ComIsLineIntersect(l2, l3, p))
-		cvSeqPush(output, &p);
+	for (i = 0; i < total; i++) {
+		l0 = (float*)cvGetSeqElem(fitlines, i);
+		for (j = i + 1; j < total; j++) {
+			l1 = (float*)cvGetSeqElem(fitlines, j);
+			if (ComIsLineIntersect(l0, l1, p))
+				cvSeqPush(output, &p);
+		}
+	}
 	if (output->total < 4) {
 		cvClearSeq(output);
 		return NULL;
 	}
-
 	cvSeqSort(output, (CvCmpFunc)CompareDistance, center);
-// 	cvSeqPopMulti(output, NULL, output->total - 4, 1);
-	// should comfirm
-	for (i = output->total; i > 4; i--) {
-		cvSeqPop(output);
-	}
+
+	cvSeqPopMulti(output, NULL, output->total - 4, 0);
 	cvSeqSort(output, (CvCmpFunc)CompareClockwise, center);
 
-	CvPoint2D32f *readp;
-	for (i = 0; i < output->total; i++) {
-		readp = (CvPoint2D32f*)cvGetSeqElem(output, i);
-		std::cout << readp->x << ", " << readp->y << std::endl;
-	}
-	std::cout << std::endl;
+// display four corner
+// 	CvPoint2D32f *readp;
+// 	for (i = 0; i < output->total; i++) {
+// 		readp = (CvPoint2D32f*)cvGetSeqElem(output, i);
+// 		std::cout << readp->x << ", " << readp->y << std::endl;
+// 	}
+// 	std::cout << std::endl;
 	return output;
+}
+RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
+	RESULT result = RESULT_OK;
+	IplImage *thresimg, *contimg;
+	IplImage *doingimg, *olddoingimg;
+	CvMemStorage *storage;
+	CvSeq *lines, *linesappr;
+	CvSeq *conners;
+	bool havelarge = false;
+	int minsize = MIN(img->width, img->height);
+	int i;
+
+	storage = cvCreateMemStorage(0);
+
+	doingimg = cvCloneImage(img);
+	while (!havelarge && loop) {
+		olddoingimg = doingimg;
+		thresimg = TrImageThreshold(doingimg, 0, 0);
+		doingimg = TrContourDraw(thresimg, havelarge);
+		loop--;
+		if (havelarge || !loop) {
+			break;
+		}
+		else {
+			cvReleaseImage(&olddoingimg);
+			cvReleaseImage(&thresimg);
+		}
+	}
+	if (!havelarge) {
+		result = RESULT_MAYBE;
+	}
+	contimg = doingimg;
+
+	lines = TrCreateHoughLines(contimg, storage);
+	linesappr = TrAggregationLines(lines, storage, minsize / 30);
+	if (true) {			// should add condition for draw 
+		ComDrawLineForFitLine(img, linesappr);
+	}
+	if (!linesappr || linesappr->total == 0) {
+		result = RESULT_ERR;
+	}
+	else
+	{
+		if (linesappr->total != 4) {
+			linesappr = TrChoiceLinesInFitLines(linesappr, storage);
+			result = RESULT_MAYBE;
+		}
+		conners = TrGetFourCorner(linesappr, storage, &cvPoint2D32f(img->width / 2, img->height / 2));
+		if (!conners || conners->total != 4) {
+			result = RESULT_ERR;
+		}
+		else {
+			for (i = 0; i < 4; i++) {
+				*corner = *(CvPoint2D32f*)cvGetSeqElem(conners, i);
+				corner++;
+			}
+		}
+	}
+	cvReleaseMemStorage(&storage);
+	cvReleaseImage(&contimg);
+	cvReleaseImage(&thresimg);
+	cvReleaseImage(&olddoingimg);
+	return result;
 }
 
 
-int ComIsRectIsolated(Box *box, Boxa *boxa, int space) {
+bool ComIsWordBox(Box *box, Pix *pix, int largerate, int smallrate) {
+	int l, s, bl, bs;
+	s = MIN(pix->w, pix->h);
+	l = MAX(pix->w, pix->h);
+	bs = MIN(box->w, box->h);
+	bl = MAX(box->w, box->h);
+	if (box->w > s / largerate && box->w < l / smallrate &&
+		box->h > s / largerate && box->h < l / smallrate &&
+		bl / bs < 2) {
+		return true;
+	}
+	return false;
+}
+bool ComIsBoxIsolated(Box *box, Boxa *boxa, int space) {
 	int i, count = 0;
 	Box **now;
 	now = boxa->box;
@@ -411,9 +554,141 @@ int ComIsRectIsolated(Box *box, Boxa *boxa, int space) {
 		}
 		now++;
 	}
-	if (count == 1) return RESULT_OK;
-	else return RESULT_ERR;
+	if (count == 1) return true;
+	else return false;
 }
+
+IplImage* TrWarpPerspective(IplImage *img, CvPoint2D32f *corner) {
+	CvPoint2D32f dstcornet[4];
+	CvMat *warp_mat = cvCreateMat(3, 3, CV_32FC1);
+	IplImage *dst = cvCreateImage(cvSize(img->width, img->height), img->depth, img->nChannels);
+	cvZero(dst);
+
+	dstcornet[0].x = dstcornet[3].x = ((corner + 0)->x + (corner + 3)->x) / 2;
+	dstcornet[1].x = dstcornet[2].x = ((corner + 1)->x + (corner + 2)->x) / 2;
+	dstcornet[0].y = dstcornet[1].y = ((corner + 0)->y + (corner + 1)->y) / 2;
+	dstcornet[2].y = dstcornet[3].y = ((corner + 2)->y + (corner + 3)->y) / 2;
+	cvGetPerspectiveTransform(corner, dstcornet, warp_mat);
+	cvWarpPerspective(img, dst, warp_mat);
+	return dst;
+}
+Pix* TrPixCreateFromIplImage(IplImage *img) {
+	// create Pix from IplImage
+	Pix	   *pix = NULL;
+	int		x, y;
+	char   *istart, *ix;
+	l_uint32 *pstart, *px;
+
+	// only supply 8 bit gray and 24 bit color image now.
+	if (!img || img->depth != IPL_DEPTH_8U || (img->nChannels != 1 && img->nChannels != 3)) {
+		return NULL;
+	}
+	pix = pixCreateNoInit(img->width, img->height, img->nChannels == 1 ? 8 : 32);
+	if (!pix) {
+		return NULL;
+	}
+
+	istart = img->imageData;
+	pstart = pix->data;
+	if (img->nChannels == 1) {
+		for (y = 0; y < img->height; y++) {
+			// for gray img, one for big-end in 4 byte, another for small-end. So switch the order
+			ix = istart;
+			px = pstart;
+			for (x = 0; x < (img->width + 3) / 4; x++) {
+				*px++ = (*ix << 24) + (*(ix + 1) << 16) + (*(ix + 2) << 8) + *(ix + 3);
+				ix += 4;
+			}
+			// widthStep and wpl are 4 byte align
+			istart += img->widthStep;
+			pstart += pix->wpl;
+		}
+	}
+	if (img->nChannels == 3) {
+		// for IplImage, use 3 byte for one pixel in 24 bit image, while Pix use 4 byte.
+		for (y = 0; y < img->height; y++) {
+			ix = istart;
+			px = pstart;
+			for (x = 0; x < img->width; x++) {
+				*px++ = (*(l_uint32 *)ix) << 8;
+				ix += 3;
+			}
+			istart += img->widthStep;
+			pstart += pix->wpl;
+		}
+	}
+	return pix;
+}
+tesseract::TessBaseAPI* TrInitTessAPI(Pix *pix) {
+	tesseract::TessBaseAPI *api = new tesseract::TessBaseAPI;
+	int rc = api->Init(NULL, DEFAULT_LANGURE, tesseract::OEM_DEFAULT);
+	if (rc)
+		return NULL;
+	api->SetImage(pix);
+	return api;
+}
+void TrExitTessAPI(tesseract::TessBaseAPI *api) {
+	api->End();
+	delete api;
+}
+
+Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
+	Pixa *pixa;
+	Boxa *boxa, *boxc, *boxr;
+	Box  **box;
+	int i;
+	int size = MAX(pix->w, pix->h);
+
+	boxa = api->GetConnectedComponents(&pixa);
+//	boxa = api->GetWords(&pixa);
+	if (!boxa || !boxa->box) {
+		return NULL;
+	}
+	boxc = boxaCreate(boxa->n);
+	box = boxa->box;
+	for (i = 0; i < boxa->n; i++) {
+		// detect size
+		if (ComIsWordBox(*box, pix)) {
+			boxaAddBox(boxc, *box, L_CLONE);
+		}
+		box++;
+	}
+
+	boxr = boxaCreate(boxc->n);
+	box = boxc->box;
+	for (i = 0; i < boxc->n; i++) {
+		if (ComIsBoxIsolated(*box, boxc, size / 300) == RESULT_OK) {
+			boxaAddBox(boxr, *box, L_CLONE);
+		}
+		box++;
+	}
+	boxaDestroy(&boxc);
+	return boxr;
+}
+
+char* TrTranslateInRect(Box *box, tesseract::TessBaseAPI *api, tesseract::PageSegMode mode, TrEncodeMode encode) {
+	// encode for ENCODE_GB2312 or ENCODE_UTF8
+	char *utfstr, *str;
+	long gsize;
+
+	api->SetPageSegMode(mode);
+	api->SetRectangle(box->x, box->y, box->w, box->h);
+
+	api->Recognize(NULL);
+	if (encode == ENCODE_GBK) {
+		utfstr = api->GetUTF8Text();
+		ComUtf8ToGbk(utfstr, (long)strlen(utfstr), str, gsize);
+		delete[] utfstr;
+	}
+	else if (encode == ENCODE_UTF8) {
+		str = api->GetUTF8Text();
+	}
+	return str;
+}
+
+
+
+
 
 #define DELTA_RATE 0.1
 #define DELTA_DISTANCE 10
@@ -459,70 +734,10 @@ bool ComMatchPlace(TrFeatureWordFound *one, TrFeatureWordFound *two) {
 
 
 
-#define LARGE_RATE				10
-#define SMALL_RATE				60
-int ComIsWord(Box *box, Pix *pix) {
-	int l, s, bl, bs;
-	s = MIN(pix->w, pix->h);
-	l = MAX(pix->w, pix->h);
-	bs = MIN(box->w, box->h);
-	bl = MAX(box->w, box->h);
-	if (box->w > s / SMALL_RATE && box->w < l / LARGE_RATE &&
-		box->h > s / SMALL_RATE && box->h < l / LARGE_RATE &&
-		bl / bs < 2) {
-		return RESULT_OK;
-	}
-	return RESULT_ERR;
-}
+
 
 // following function is for translate data between leptonica and opencv
-Pix* TrPixCreateFromIplImage(IplImage *img) {
-// create Pix from IplImage
-	Pix	   *pix = NULL;
-	int		x, y;
-	char   *istart, *ix;
-	l_uint32 *pstart, *px;
 
-// only supply 8 bit gray and 24 bit color image now.
-	if (!img || img->depth != IPL_DEPTH_8U || (img->nChannels != 1 && img->nChannels != 3)) {
-		return NULL;
-	}
-	pix = pixCreateNoInit(img->width, img->height, img->nChannels == 1 ? 8 : 32);
-	if (!pix) {
-		return NULL;
-	}
-
-	istart = img->imageData;
-	pstart = pix->data;
-	if (img->nChannels == 1) {
-		for (y = 0; y < img->height; y++) {
-// for gray img, one for big-end in 4 byte, another for small-end. So switch the order
-			ix = istart;
-			px = pstart;
-			for (x = 0; x < (img->width + 3) / 4; x++) {
-				*px++ = (*ix << 24) + (*(ix + 1) << 16) + (*(ix + 2) << 8) + *(ix + 3);
-				ix += 4;
-			}
-// widthStep and wpl are 4 byte align
-			istart += img->widthStep;
-			pstart += pix->wpl;
-		}
-	}
-	if (img->nChannels == 3) {
-// for IplImage, use 3 byte for one pixel in 24 bit image, while Pix use 4 byte.
-		for (y = 0; y < img->height; y++) {
-			ix = istart;
-			px = pstart;
-			for (x = 0; x < img->width; x++) {
-				*px++ = (*(l_uint32 *)ix) << 8;
-				ix += 3;
-			}
-			istart += img->widthStep;
-			pstart += pix->wpl;
-		}
-	}
-	return pix;
-}
 
 IplImage* TrCreateMaxContour(IplImage *src, CvMemStorage *storage, int thresv, double arate, double lrate) {
 // src can be 8 or 24 bit, return image is 8 bit
@@ -579,76 +794,49 @@ IplImage* TrCreateLine(IplImage *img, CvSeq *lines) {
 	return dst;
 }
 
-CvSeq* TrCreateHoughLines(IplImage *src, CvMemStorage *storage) {
-// here src MUST be one channel
-//	CvMemStorage* storage = cvCreateMemStorage(0);
-	CvSeq* lines = 0;
-	double rho = 3;
-// 	double theta = CV_PI / 180;
-// 	double threshold = 30;
-// 	double min_length = 200;//CV_HOUGH_PROBABILISTIC  
-// 	double sepration_connection = 4;//CV_HOUGH_PROBABILISTIC  
-	double theta = 2*CV_PI  / 180;
-// 	double threshold = 100;
-// 	double min_length = 150;//CV_HOUGH_PROBABILISTIC  
-// 	double sepration_connection = 40;//CV_HOUGH_PROBABILISTIC  
-
-	int size = MAX(src->width, src->height);
-	double threshold = (double)size / 4;
-	double min_length = (double)size / 3;
-	double sepration_connection = (double)size / 40;
-
-
-
-
-									//binary image is needed.  
-	lines = cvHoughLines2(
-		src,
-		storage,
-		CV_HOUGH_PROBABILISTIC,
-		rho,
-		theta,
-		threshold,
-		min_length,
-		sepration_connection);
-
+// CvSeq* TrCreateHoughLines(IplImage *src, CvMemStorage *storage) {
+// // here src MUST be one channel
+// //	CvMemStorage* storage = cvCreateMemStorage(0);
+// 	CvSeq* lines = 0;
+// 	double rho = 3;
+// // 	double theta = CV_PI / 180;
+// // 	double threshold = 30;
+// // 	double min_length = 200;//CV_HOUGH_PROBABILISTIC  
+// // 	double sepration_connection = 4;//CV_HOUGH_PROBABILISTIC  
+// 	double theta = 2*CV_PI  / 180;
+// // 	double threshold = 100;
+// // 	double min_length = 150;//CV_HOUGH_PROBABILISTIC  
+// // 	double sepration_connection = 40;//CV_HOUGH_PROBABILISTIC  
+// 
+// 	int size = MAX(src->width, src->height);
+// 	double threshold = (double)size / 4;
+// 	double min_length = (double)size / 3;
+// 	double sepration_connection = (double)size / 40;
+// 
+// 
+// 
+// 
+// 									//binary image is needed.  
+// 	lines = cvHoughLines2(
+// 		src,
+// 		storage,
+// 		CV_HOUGH_PROBABILISTIC,
+// 		rho,
+// 		theta,
+// 		threshold,
+// 		min_length,
+// 		sepration_connection);
+// 
 //	cvReleaseMemStorage(&storage);
-	return lines;
-}
+// 	return lines;
+// }
 
 // following function is major for tesseract
-tesseract::TessBaseAPI* TrInitTessAPI(void) {
-	tesseract::TessBaseAPI *api = new tesseract::TessBaseAPI;
-	int rc = api->Init(NULL, DEFAULT_LANGURE, tesseract::OEM_DEFAULT);
-	if (rc)
-		return NULL;
-	return api;
-}
 
-void TrExitTessAPI(tesseract::TessBaseAPI *api) {
-	api->End();
-	delete api;
-}
 
-char* TrTranslateInRect(Box *box, tesseract::TessBaseAPI *api, tesseract::PageSegMode mode, TrEncodeMode encode) {
-// encode for ENCODE_GB2312 or ENCODE_UTF8
-	char *utfstr, *str;
-	long gsize;
 
-	api->SetPageSegMode(mode);
-	api->SetRectangle(box->x, box->y, box->w, box->h);
 
-	api->Recognize(NULL);
-	if (encode == ENCODE_GBK) {
-		utfstr = api->GetUTF8Text();
-		ComUtf8ToGbk(utfstr, (long)strlen(utfstr), str, gsize);
-		delete[] utfstr;
-	}
-	else if (encode == ENCODE_UTF8) {
-		str = api->GetUTF8Text();
-	}
-	return str;
-}
+
 
 
 // above function is inter use
@@ -656,39 +844,6 @@ char* TrTranslateInRect(Box *box, tesseract::TessBaseAPI *api, tesseract::PageSe
 
 // here lines is created by cvHoughLines2
 
-
-Boxa* TrChoiceBoxInBoxa(Boxa *boxa, Pix *pix) {
-	
-	Boxa *boxc, *boxr;
-	Box  **box;
-	int i;
-	int size = MAX(pix->w, pix->h);
-
-	if (!boxa || !boxa->box) {
-		return NULL;
-	}
-	boxc = boxaCreate(boxa->n);
-	box = boxa->box;
-	for (i = 0; i < boxa->n; i++) {
-// detect size
-		if (ComIsWord(*box, pix) == RESULT_OK) {
-			boxaAddBox(boxc, *box, L_CLONE);
-		}
-		box++;
-	}
-// 	return boxc;
-
-	boxr = boxaCreate(boxc->n);
-	box = boxc->box;
-	for (i = 0; i < boxc->n; i++) {
-		if (ComIsRectIsolated(*box, boxc, size / 300 ) == RESULT_OK) {
-			boxaAddBox(boxr, *box, L_CLONE);
-		}
-		box++;
-	}
-	boxaDestroy(&boxc);
-	return boxr;
-}
 
 
 

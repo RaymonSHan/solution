@@ -33,6 +33,7 @@
 
 #define THIN_WIDTH				1
 #define DEFAULT_WIDTH			3
+#define THICK_WIDTH				15
 
 struct TrFeatureWordFound;
 
@@ -45,6 +46,8 @@ typedef enum TrEncodeMode {
 // 算法取自 http://blog.csdn.net/hhhh63/article/details/25030143。
 double ComPointToLineDist(int x, int y, int x1, int y1, int x2, int y2);
 double ComPointToLineDist(CvPoint *p, CvPoint *p1, CvPoint *p2);
+// 按cvFitLine()返回格式的点到直线距离，
+double ComPointToLineDist(float *p, float *l);
 
 // 判定两矩形间距是否小于space。当space等于0时，相当于判定两矩形是否相交。两矩形的边平行于坐标轴。
 bool ComIsRectIntersect(Box *b1, Box *b2, int space);
@@ -73,9 +76,20 @@ void ComDrawBoxs(IplImage *img, Boxa *boxa, CvScalar *color = &DEFALUT_COLOR, in
 void ComDrawLines(IplImage *img, CvSeq *lines, bool drawpoint, 
 	CvScalar *color = &DEFALUT_POINT_COLOR, int width = DEFAULT_WIDTH, CvScalar *pointcolor = &DEFALUT_POINT_COLOR);
 
+// 按cvFitLine()返回的格式画线
+void ComDrawLineForFitLine(IplImage *img, float *line, CvScalar *color = &DEFALUT_COLOR, int width = DEFAULT_WIDTH);
+void ComDrawLineForFitLine(IplImage *img, CvSeq *lines, CvScalar *color = &DEFALUT_COLOR, int width = DEFAULT_WIDTH);
+
 // 根据屏幕缩放尺寸，显示图像。
 void ComShowImage(char *name, IplImage *img);
 
+// 用于cvSeqSort()的比较函数
+static int ComparePoint(void* _a, void* _b, void* userdata);
+static int CompareDistance(void* _a, void* _b, void* userdata);
+static int CompareClockwise(const void *_a, const void *_b, void *userdata);
+
+// 以下函数完成第一步工作：转正图像
+//
 // 取得二值化图像，返回图像需使用cvReleaseImage释放。
 // gaussianx, gaussiany：高斯滤波参数
 // thresvalue：二值化阈值
@@ -94,7 +108,7 @@ IplImage* TrImageThreshold(IplImage *src,
 // lrate：选择大于图像短边乘以lrate的轮廓。
 #define DEFAULT_CONT_AREA_RATE		0.1
 #define DEFAULT_CONT_LENGTH_RATE	1.5
-IplImage* TrContourDraw(IplImage *src, 
+IplImage* TrContourDraw(IplImage *src, bool &havelarge,
 	double arate = DEFAULT_CONT_AREA_RATE, double lrate = DEFAULT_CONT_LENGTH_RATE);
 
 // 取概率霍夫曼直线，需创建storage，并在使用后释放。输入图像需为灰度图像，如TrContourDraw()的返回值。
@@ -110,20 +124,61 @@ CvSeq* TrCreateHoughLines(IplImage *src, CvMemStorage *storage,
 // 合并近似的直线，需创建storage，并在使用后释放。输入序列为TrCreateHoughLines()的返回值。
 // thresholdrate：判定阈值
 // 返回值是按cvFitLine()返回格式的序列：CV_32FC4。
-#define DEFAULT_APPROXIMATE_VALUE	(35*35)
-CvSeq* TrCreateApproximateLines(CvSeq *lines, CvMemStorage *storage,
+#define DEFAULT_APPROXIMATE_VALUE	(100)
+CvSeq* TrAggregationLines(CvSeq *lines, CvMemStorage *storage,
 	double thresholdrate = DEFAULT_APPROXIMATE_VALUE);
+
+// 当轮廓线大于4条时，选择其中的四条边。有很多种算法可选，目前选择最外边。
+// lines：TrAggregationLines()的结果
+CvSeq* TrChoiceLinesInFitLines(CvSeq *lines, CvMemStorage *storage);
 
 // 根据四条边，求四个交点。
 // fitlines：TrCreateApproximateLines的返回值
 // center：图像中心点，用于判断。
-CvSeq* TrGetIntersection(CvSeq *fitlines, CvMemStorage *storage, CvPoint2D32f *center);
+CvSeq* TrGetFourCorner(CvSeq *fitlines, CvMemStorage *storage, CvPoint2D32f *center);
 
-int ComIsRectIsolated(Box *box, Boxa *boxa, int space);
+// 调用以上函数，在指定图像中，找到矩形区域的四个顶点坐标。
+// img：彩色24bit图像。
+// corner：指向CvPoint2D32f[4]，当返回RESULT_OK时有效。
+// loop：寻找图像轮廓时的迭代次数。
+#define DEFAULT_LOOP				1
+RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop = DEFAULT_LOOP);
+
+
+
+// 根据矩形大小，判定是否为识别字区域。
+// 需小于 1/LARGE_RATE 屏幕尺寸，大于 1/SMALL_RATE 屏幕尺寸
+#define LARGE_RATE				10
+#define SMALL_RATE				60
+bool ComIsWordBox(Box *box, Pix *pix, int largerate = LARGE_RATE, int smallrate = SMALL_RATE);
+
+// 判定指定Box在Boxa中，是否与其它Box相交。
+bool ComIsBoxIsolated(Box *box, Boxa *boxa, int space);
+
+// 以下函数完成第二步工作：预读取
+//
+// 按TechOcrGetFourCorner()的结果，转正图形。
+IplImage* TrWarpPerspective(IplImage *img, CvPoint2D32f *corner);
+
+// 将OpenCV的IplImage格式，转换为Leptonica的Pix格式。
+Pix* TrPixCreateFromIplImage(IplImage *img);
+
+// 初始化Tesseract引擎，并装载图像。
+tesseract::TessBaseAPI* TrInitTessAPI(Pix *pix);
+
+// 终止识别引擎。
+void TrExitTessAPI(tesseract::TessBaseAPI *api);
+
+// 在图像中，找到可能包含识别字的矩形区域。
+Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix);
+
+
+char* TrTranslateInRect(Box *box, tesseract::TessBaseAPI *api, tesseract::PageSegMode mode, TrEncodeMode encode);
+
+
 bool ComMatchPlace(TrFeatureWordFound *one, TrFeatureWordFound *two);
 
 
-int ComIsWord(Box *box, Pix *pix);
 
 
 
@@ -132,14 +187,7 @@ IplImage* TrCreateMaxContour(IplImage *src, CvMemStorage *storage = NULL,
 	int thresv = DEFAULT_THRESV_VALUE, double arate = MAX_CONTOUR_AREA_RATE, double lrate = MAX_CONTOUR_LENGTH_RATE);
 IplImage* TrCreateLine(IplImage *img, CvSeq *lines);
 
-// following function is for translate data between leptonica and opencv
-Pix* TrPixCreateFromIplImage(IplImage *img);
-Boxa* TrChoiceBoxInBoxa(Boxa *boxa, Pix *pix);
 
-// following function is major for tesseract
-tesseract::TessBaseAPI* TrInitTessAPI(void);
-void TrExitTessAPI(tesseract::TessBaseAPI *api);
-char* TrTranslateInRect(Box *box, tesseract::TessBaseAPI *api, tesseract::PageSegMode mode, TrEncodeMode encode);
 
 
 
