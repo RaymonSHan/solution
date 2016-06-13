@@ -100,6 +100,24 @@ bool comMatchPlace(trFeatureWordFound *one, trFeatureWordFound *two) {
 // 	return rate;
 }
 
+// http://blog.csdn.net/zhanghefu/article/details/6076542
+RESULT comIsIntersect(CvPoint *p1, CvPoint *p2, CvPoint *p3, CvPoint *p4, CvPoint2D32f &p) {
+	int d = (p2->y - p1->y)*(p4->x - p3->x) - (p4->y - p3->y)*(p2->x - p1->x);
+	if (d == 0) 
+		return RESULT_ERR;
+
+	int tx = (p2->x - p1->x)*(p4->x - p3->x)*(p3->y - p1->y) +
+		(p2->y - p1->y)*(p4->x - p3->x)*p1->x -
+		(p4->y - p3->y)*(p2->x - p1->x)*p3->x;
+	int ty = (p2->y - p1->y)*(p4->y - p3->y)*(p3->x - p1->x) +
+		(p2->x - p1->x)*(p4->y - p3->y)*p1->y -
+		(p4->x - p3->x)*(p2->y - p1->y)*p3->y;
+
+	p.x = 1.0f * tx / d;
+	p.y = -1.0f * ty / d;
+	return RESULT_OK;
+ }
+
 
 RESULT trGbkToUtf8(char* gbk, long gsize, char*& utf8, long &usize) {
 	long unicodelen = MultiByteToWideChar(CP_ACP, 0, (LPCSTR)gbk, gsize, NULL, 0);

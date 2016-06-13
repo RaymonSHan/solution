@@ -63,6 +63,7 @@ public:
 	}
 	trFeatureWordFound* AddFound(Box *box, char *word);
 	Boxa* ReturnFound(int &start, int &match);
+	RESULT ReturnCorner(CvPoint2D32f *csrc, CvPoint2D32f *cdst);		// both pointer to CvPoint[4];
 };
 
 RESULT trAddFeatureWord(int x, int y, int w, int h, char *word, trFeatureWord *trword, trFeatureWord *next);

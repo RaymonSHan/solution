@@ -103,16 +103,64 @@ Boxa* OcrFeatureWordsFound::ReturnFound(int &start, int &match) {
 			if (comMatchPlace(nowword, twoword))
 			{
 				boxaAddBox(boxa, &(twoword->found[0]), L_CLONE);
-				nowword->match = true;
+				twoword->match = true;
 				match++;
 			}
 			else {
-				nowword->match = false;
+				twoword->match = false;
 			}
 		}
 	}
-
 	return boxa;
+}
+
+RESULT OcrFeatureWordsFound::ReturnCorner(CvPoint2D32f *csrc, CvPoint2D32f *cdst) {		// both pointer to CvPoint[4];
+	int tl = MAXINT, tr = -1 * MAXINT, bl = MAXINT, br = -1 * MAXINT;
+	int ntl, ntr, nbl, nbr;
+	int i;
+	Box *now;
+
+	for (i = 0; i < nowFeature; i++) {
+		if (allFeature[i].match) {
+			now = &(allFeature[i].origin);
+			if (now->x + now->y < tl) {
+				tl = now->x + now->y;
+				ntl = i;
+			}
+			if (now->x + now->w - now->y > tr) {
+				tr = now->x + now->w - now->y;
+				ntr = i;
+			}
+			if (now->x - now->y - now->h < bl) {
+				bl = now->x - now->y - now->h;
+				nbl = i;
+			}
+			if (now->x + now->y + now->w + now->h) {
+				br = now->x + now->y + now->w + now->h;
+				nbr = i;
+			}
+		}
+	}
+	(csrc + 0)->x = (float)allFeature[ntl].origin.x;
+	(csrc + 0)->y = (float)allFeature[ntl].origin.y;
+	(cdst + 0)->x = (float)allFeature[ntl].found[0].x;
+	(cdst + 0)->y = (float)allFeature[ntl].found[0].y;
+
+	(csrc + 1)->x = (float)allFeature[ntr].origin.x + allFeature[ntr].origin.w;
+	(csrc + 1)->y = (float)allFeature[ntr].origin.y;
+	(cdst + 1)->x = (float)allFeature[ntr].found[0].x + allFeature[ntr].found[0].w;
+	(cdst + 1)->y = (float)allFeature[ntr].found[0].y;
+
+	(csrc + 2)->x = (float)allFeature[nbr].origin.x + allFeature[nbr].origin.w;
+	(csrc + 2)->y = (float)allFeature[nbr].origin.y + allFeature[nbr].origin.h;
+	(cdst + 2)->x = (float)allFeature[nbr].found[0].x + allFeature[nbr].found[0].w;
+	(cdst + 2)->y = (float)allFeature[nbr].found[0].y + allFeature[nbr].found[0].h;
+
+	(csrc + 3)->x = (float)allFeature[nbl].origin.x;
+	(csrc + 3)->y = (float)allFeature[nbl].origin.y + allFeature[nbl].origin.h;
+	(cdst + 3)->x = (float)allFeature[nbl].found[0].x;
+	(cdst + 3)->y = (float)allFeature[nbl].found[0].y + allFeature[nbl].found[0].h;
+	return RESULT_OK;
 }
 
 OcrFormat BusinessLicense;

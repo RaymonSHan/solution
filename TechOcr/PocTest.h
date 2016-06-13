@@ -13,3 +13,10 @@ void pocFindFeatureWordsInClass(char *src);
 
 void pocShowImage(char *src);
 void pocImagePreprocess(IplImage *img);
+
+void pocPointToLineDist(void);
+void pocIsIntersect(void);
+
+void pocNewContour(char *src);
+
+

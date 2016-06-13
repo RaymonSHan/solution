@@ -32,7 +32,7 @@
 #define MAX_CONTOUR_LENGTH_RATE 2
 #define DEFAULT_THRESV_VALUE 160
 
-#define THICK_WIDTH				1
+#define THIN_WIDTH				1
 #define DEFAULT_WIDTH			3
 
 struct trFeatureWordFound;
@@ -48,6 +48,7 @@ int comIsRectCross(Box *b1, Box *b2, int space);
 int comIsRectIsolated(Box *box, Boxa *boxa, int space);
 void comEnlargeBox(Box *box, Box &enlarge, int delta);
 bool comMatchPlace(trFeatureWordFound *one, trFeatureWordFound *two);
+RESULT comIsIntersect(CvPoint *p1, CvPoint *p2, CvPoint *p3, CvPoint *p4, CvPoint2D32f &p);
 
 
 RESULT trGbkToUtf8(char* gbk, long gsize, char*& utf8, long &usize);

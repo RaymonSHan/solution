@@ -50,29 +50,37 @@ void pocFindMaxRect(char *src) {
 }
 
 void pocFindHoughLines(char *src) {
-	IplImage *img, *dst, *dst2;
+	IplImage *img, *mimg, *dst, *dst2;
 	CvMemStorage* storage;
 	CvSeq *lines, *lines2;
 
-	img = cvLoadImage(src, 1);     // 0 for gray, 1 for color
-	dst = trCreateMaxContour(img);
+	img = cvLoadImage(src, 0);     // 0 for gray, 1 for color
+	mimg = cvCloneImage(img);
+
+//  	cvCanny(img, mimg, 50, 150, 3);//±ßÔµ¼ì²â  
+// 	cvPyrMeanShiftFiltering(img, mimg, 3, 15);
+
+	dst = trCreateMaxContour(mimg);
 	storage = cvCreateMemStorage(0);
 
 	int size = MAX(img->width, img->height);
 
 	lines = cvHoughLines2(dst, storage, CV_HOUGH_PROBABILISTIC,
 		size / 1000, CV_PI / 180,
-		(double)size / 6, (double)size / 4, (double)size / 100);
+		(double)size / 8, (double)size / 6, (double)size / 40);
  	trDrawLines(img, lines, true);
 	dst2 = trCreateLine(dst/* only for size**/, lines);
 
 
 	trShowImage("src", img);
+	trShowImage("mimg", mimg);
 	trShowImage("dst", dst);
 	trShowImage("dst2", dst2);
 
 	cvWaitKey();
 	cvReleaseImage(&dst);
+	cvReleaseImage(&dst2);
+	cvReleaseImage(&mimg);
 	cvReleaseImage(&img);
 	cvReleaseMemStorage(&storage);
 }
@@ -91,7 +99,6 @@ void pocFindFeatureWords(char *src) {
 	if (!img) {
 		return;
 	}
-
 	pix = trPixCreateFromIplImage(img);
 	api = trInitTessAPI();
 	api->SetImage(pix);
@@ -106,8 +113,6 @@ void pocFindFeatureWords(char *src) {
 		delete[] str;
 		box++;
 	}
-
-
 	trDrawBoxs(img, boxc);
 	trShowImage("src", img);
 	cvWaitKey();
@@ -184,8 +189,15 @@ void pocFindFeatureWordsInClass(char *src) {
 		// have found feature
 		trDrawBoxs(img, boxf);
 	}
+	CvPoint2D32f srcTri[4], desTri[4];
+	CvMat *warpMat;
 
-
+	found->ReturnCorner(srcTri, desTri);
+	for (i = 0; i < 4; i++)
+		cvCircle(img, cvPointFrom32f(desTri[i]), 20, CV_RGB(190,11,55));
+	warpMat = cvCreateMat(3, 3, CV_64F);
+	cvGetPerspectiveTransform(srcTri, desTri, warpMat);
+	cvReleaseMat(&warpMat);
 
  //	trDrawBoxs(img, boxc, &cvScalar(232,164,74));
 	trShowImage("src", img);
@@ -194,10 +206,8 @@ void pocFindFeatureWordsInClass(char *src) {
 	boxaDestroy(&boxa);
 	boxaDestroy(&boxc);
 	boxaDestroy(&boxf);
-	delete found;			// found should delete after destroy boxf
-
-
 	pixaDestroy(&pixa);
+	delete found;			// found should delete after destroy boxf
 
 	trExitTessAPI(api);
 	pixDestroy(&pix);
@@ -271,10 +281,37 @@ void pocShowImage(char *src) {
 	cvReleaseImage(&img);
 }
 
-void pocPointToLineDist() {
+void pocPointToLineDist(void) {
 	double aa = comPointToLineDist(0, 0, 0, 1, 1, 0);
 	return;
 }
-void pocImagePreprocess(IplImage *img) {
 
+void pocIsIntersect(void) {
+	CvPoint a1, a2, b1, b2;
+	CvPoint2D32f c1;
+	a1 = cvPoint(1, 1);
+	a2 = cvPoint(2, 2);
+	b1 = cvPoint(0, 5);
+	b2 = cvPoint(4, 1);
+	RESULT result = comIsIntersect(&a1, &a2, &b1, &b2, c1);
+	return;
+}
+
+// http://www.linuxidc.com/Linux/2015-01/111962.htm
+// this is what I need
+// should read http://blog.csdn.net/qq61394323/article/details/10018967
+// http://blog.csdn.net/wangyaninglm/article/details/41863867
+void pocNewContour(char *src) {
+	IplImage *img, *mimg;
+
+	img = cvLoadImage(src, 1);
+	if (!img) {
+		return;
+	}
+	mimg = cvCloneImage(img);
+
+	cvPyrMeanShiftFiltering(img, mimg, 3, 15);
+	trShowImage("src", img);
+	trShowImage("mean", mimg);
+	cvWaitKey();
 }
