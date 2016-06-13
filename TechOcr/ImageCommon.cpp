@@ -11,6 +11,122 @@ double comPointToLineDist(int x, int y, int x1, int y1, int x2, int y2) {
 	double s = a / b;
 	return abs(s);
 }
+
+#define LARGE_RATE				10
+#define SMALL_RATE				60
+int comIsWord(Box *box, Pix *pix) {
+	int l, s, bl, bs;
+	s = MIN(pix->w, pix->h);
+	l = MAX(pix->w, pix->h);
+	bs = MIN(box->w, box->h);
+	bl = MAX(box->w, box->h);
+	if (box->w > s / SMALL_RATE && box->w < l / LARGE_RATE &&
+		box->h > s / SMALL_RATE && box->h < l / LARGE_RATE &&
+		bl / bs < 2) {
+		return RESULT_OK;
+	}
+	return RESULT_ERR;
+}
+
+int comIsRectCross(Box *b1, Box *b2, int space) {
+	int minx, maxx, miny, maxy;
+	minx = MAX(b1->x - space, b2->x - space);
+	miny = MAX(b1->y - space, b2->y - space);
+	maxx = MIN(b1->x + b1->w + space, b2->x + b2->w + space);
+	maxy = MIN(b1->y + b1->h + space, b2->y + b2->h + space);
+
+	if (minx < maxx && miny < maxy)	return RESULT_OK;
+	else return RESULT_ERR;
+}
+
+int comIsRectIsolated(Box *box, Boxa *boxa, int space) {
+	int i, count = 0;
+	Box **now;
+	now = boxa->box;
+	for (i = 0; i < boxa->n; i++) {
+		if (comIsRectCross(box, *now, space) == RESULT_OK) {
+			count++;
+		}
+		now++;
+	}
+	if (count == 1) return RESULT_OK;
+	else return RESULT_ERR;
+}
+
+void comEnlargeBox(Box *box, Box &enlarge, int delta) {
+	enlarge.x = box->x - delta;
+	enlarge.y = box->y - delta;
+	enlarge.w = box->w + delta + delta;
+	enlarge.h = box->h + delta + delta;
+}
+
+#define DELTA_RATE 0.1
+#define DELTA_DISTANCE 10
+
+bool comMatchPlace(trFeatureWordFound *one, trFeatureWordFound *two) {
+	double onex, oney, twox, twoy, disx, disy;
+	double minx, miny, maxx, maxy;
+	onex = (double)(one->origin.w) / (double)(one->found[0].w);
+	oney = (double)(one->origin.h) / (double)(one->found[0].h);
+	twox = (double)(two->origin.w) / (double)(two->found[0].w);
+	twoy = (double)(two->origin.h) / (double)(two->found[0].h);
+	minx = MIN(onex, twox);
+	miny = MIN(oney, twoy);
+	maxx = MAX(onex, twox);
+	maxy = MAX(oney, twoy);
+	if ((maxx - minx) / minx > DELTA_RATE || (maxy - miny) / miny > DELTA_RATE) {
+		return false;
+	}
+	if ((double)(abs(one->origin.x - two->origin.x)) / maxx / (1 + DELTA_RATE) - DELTA_DISTANCE >
+		(double)(abs(one->found[0].x - two->found[0].x)))
+		return false;
+	if ((double)(abs(one->origin.x - two->origin.x)) / minx / (1 - DELTA_RATE) + DELTA_DISTANCE <
+		(double)(abs(one->found[0].x - two->found[0].x)))
+		return false;
+	if ((double)(abs(one->origin.y - two->origin.y)) / maxy / (1 + DELTA_RATE) - DELTA_DISTANCE >
+		(double)(abs(one->found[0].y - two->found[0].y)))
+		return false;
+	if ((double)(abs(one->origin.y - two->origin.y)) / miny / (1 - DELTA_RATE) + DELTA_DISTANCE <
+		(double)(abs(one->found[0].y - two->found[0].y)))
+		return false;
+	return true;
+// 	disx = (double)(one->origin.x - two->origin.x) / (double)(one->found[0].x - two->found[0].x);
+// 	disy = (double)(one->origin.y - two->origin.y) / (double)(one->found[0].y - two->found[0].y);
+// 	minx = MIN(MIN(onex, twox), disx);
+// 	miny = MIN(MIN(oney, twoy), disy);
+// 	maxx = MAX(MAX(onex, twox), disx);
+// 	maxy = MAX(MAX(oney, twoy), disy);
+// 	rate = MAX(maxx / minx, maxy / miny);
+// 	return rate;
+}
+
+
+RESULT trGbkToUtf8(char* gbk, long gsize, char*& utf8, long &usize) {
+	long unicodelen = MultiByteToWideChar(CP_ACP, 0, (LPCSTR)gbk, gsize, NULL, 0);
+	WCHAR *strSrc = new WCHAR[unicodelen + 16];
+	MultiByteToWideChar(CP_ACP, 0, (LPCSTR)gbk, gsize, strSrc, unicodelen);
+
+	usize = WideCharToMultiByte(CP_UTF8, 0, strSrc, unicodelen, NULL, 0, NULL, NULL);
+	utf8 = new char[usize + 16];
+	WideCharToMultiByte(CP_UTF8, 0, strSrc, unicodelen, (LPSTR)utf8, usize, NULL, NULL);
+	utf8[usize] = 0;
+	delete[]strSrc;
+	return RESULT_OK;
+}
+RESULT trUtf8ToGbk(char* utf8, long usize, char*& gbk, long &gsize) {
+	long unicodelen = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)utf8, usize, NULL, 0);
+	WCHAR *strSrc = new WCHAR[unicodelen + 16];
+	MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)utf8, usize, strSrc, unicodelen);
+
+	gsize = WideCharToMultiByte(CP_ACP, 0, strSrc, unicodelen, NULL, 0, NULL, NULL);
+	gbk = new char[gsize + 16];
+	WideCharToMultiByte(CP_ACP, 0, strSrc, unicodelen, (LPSTR)gbk, gsize, NULL, NULL);
+	gbk[gsize] = 0;
+	delete[]strSrc;
+	return RESULT_OK;
+}
+
+
 // following function is for translate data between leptonica and opencv
 Pix* trPixCreateFromIplImage(IplImage *img) {
 // create Pix from IplImage
@@ -241,6 +357,26 @@ void trExitTessAPI(tesseract::TessBaseAPI *api) {
 	delete api;
 }
 
+char* trTranslateInRect(Box *box, tesseract::TessBaseAPI *api, tesseract::PageSegMode mode, EncodeMode encode) {
+// encode for ENCODE_GB2312 or ENCODE_UTF8
+	char *utfstr, *str;
+	long gsize;
+
+	api->SetPageSegMode(mode);
+	api->SetRectangle(box->x, box->y, box->w, box->h);
+
+	api->Recognize(NULL);
+	if (encode == ENCODE_GBK) {
+		utfstr = api->GetUTF8Text();
+		trUtf8ToGbk(utfstr, (long)strlen(utfstr), str, gsize);
+		delete[] utfstr;
+	}
+	else if (encode == ENCODE_UTF8) {
+		str = api->GetUTF8Text();
+	}
+	return str;
+}
+
 
 // above function is inter use
 // following function is declare outside
@@ -252,13 +388,11 @@ void trDrawBoxs(IplImage *img, Boxa *boxa, CvScalar *color, int width) {
 	if (!img || !boxa || !boxa->box) {
 		return;
 	}
-	if (boxa && boxa->box) {
-		box = boxa->box;
-		for (i = 0; i < boxa->n; i++) {
-			cvrect = cvRect((*box)->x, (*box)->y, (*box)->w, (*box)->h);
-			cvRectangleR(img, cvrect, *color, width);
-			box++;
-		}
+	box = boxa->box;
+	for (i = 0; i < boxa->n; i++) {
+		cvrect = cvRect((*box)->x, (*box)->y, (*box)->w, (*box)->h);
+		cvRectangleR(img, cvrect, *color, width);
+		box++;
 	}
 }
 
@@ -276,6 +410,38 @@ void trDrawLines(IplImage *img, CvSeq *lines, bool drawpoint, CvScalar *color, i
 	}
 }
 
+Boxa* trChoiceBoxInBoxa(Boxa *boxa, Pix *pix) {
+	
+	Boxa *boxc, *boxr;
+	Box  **box;
+	int i;
+	int size = MAX(pix->w, pix->h);
+
+	if (!boxa || !boxa->box) {
+		return NULL;
+	}
+	boxc = boxaCreate(boxa->n);
+	box = boxa->box;
+	for (i = 0; i < boxa->n; i++) {
+// detect size
+		if (comIsWord(*box, pix) == RESULT_OK) {
+			boxaAddBox(boxc, *box, L_CLONE);
+		}
+		box++;
+	}
+// 	return boxc;
+
+	boxr = boxaCreate(boxc->n);
+	box = boxc->box;
+	for (i = 0; i < boxc->n; i++) {
+		if (comIsRectIsolated(*box, boxc, size / 300 ) == RESULT_OK) {
+			boxaAddBox(boxr, *box, L_CLONE);
+		}
+		box++;
+	}
+	boxaDestroy(&boxc);
+	return boxr;
+}
 
 void trShowImage(char *name, IplImage *img, Boxa *boxa, CvScalar *color, int width) {
 	RECT	rect;

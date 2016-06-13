@@ -1,5 +1,8 @@
 #include "PocTest.h"
 
+#define  OUTPUTBOX(b, s)	std::cout << (b)->x << ", " << (b)->y << ", " << (b)->w << ", " << (b)->h << ", " \
+	<< s << std::endl;
+
 void pocPixCreateFromIplImage(char *src, char *dst) {
 	IplImage *img = cvLoadImage(src, 1);     // 1 for is colored
 	if (!img) {
@@ -74,7 +77,133 @@ void pocFindHoughLines(char *src) {
 	cvReleaseMemStorage(&storage);
 }
 
+void pocFindFeatureWords(char *src) {
+	IplImage *img;
+	Pix *pix;
+	tesseract::TessBaseAPI *api;
+	Pixa *pixa;
+	Boxa *boxa, *boxc;
+	Box **box;
+	int i;
+	char *str;
 
+	img = cvLoadImage(src, 1);
+	if (!img) {
+		return;
+	}
+
+	pix = trPixCreateFromIplImage(img);
+	api = trInitTessAPI();
+	api->SetImage(pix);
+	boxa = api->GetConnectedComponents(&pixa);
+	//boxa = api->GetWords(&pixa);
+	boxc = trChoiceBoxInBoxa(boxa, pix);
+
+	box = boxc->box;
+	for (i = 0; i < boxc->n; i++) {
+		str = trTranslateInRect(*box, api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK);
+		OUTPUTBOX(*box, str);
+		delete[] str;
+		box++;
+	}
+
+
+	trDrawBoxs(img, boxc);
+	trShowImage("src", img);
+	cvWaitKey();
+
+	boxaDestroy(&boxa);
+	boxaDestroy(&boxc);
+
+	pixaDestroy(&pixa);
+
+	trExitTessAPI(api);
+	pixDestroy(&pix);
+	cvReleaseImage(&img);
+
+}
+
+extern OcrFormat BusinessLicense;
+
+#define MIN_MATCH		6
+void pocFindFeatureWordsInClass(char *src) {
+	IplImage *img;
+	Pix *pix;
+	tesseract::TessBaseAPI *api;
+	Pixa *pixa;
+	Boxa *boxa, *boxc, *boxf;
+	Box **box;
+	int i;
+	char *str;
+	OcrFeatureWordsFound *found;
+	trFeatureWordFound *result;
+	int count = 0;
+
+	ocrInitBusinessLicense();
+
+	img = cvLoadImage(src, 1);
+	if (!img) {
+		return;
+	}
+	pix = trPixCreateFromIplImage(img);
+	api = trInitTessAPI();
+	api->SetImage(pix);
+	boxa = api->GetConnectedComponents(&pixa);
+	//boxa = api->GetWords(&pixa);
+	boxc = trChoiceBoxInBoxa(boxa, pix);
+	found = new OcrFeatureWordsFound;
+
+	found->InitFound(&BusinessLicense);
+	box = boxc->box;
+	for (i = 0; i < boxc->n; i++) {
+		Box enlarge;
+		comEnlargeBox(*box, enlarge, 1);
+		str = trTranslateInRect(&enlarge, api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK);
+// 		str = trTranslateInRect(*box, api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK);
+		result = found->AddFound(*box, str);
+		if (result) {
+			count++;
+		}
+ 		OUTPUTBOX(*box, str);
+		delete[] str;
+		box++;
+	}
+	int start = 0, match;
+	while (start < found->GetNumber())
+	{
+		boxf = found->ReturnFound(start, match);
+		if (match < MIN_MATCH) {
+			boxaDestroy(&boxf);
+			start++;
+		}
+		else {
+			break;
+		}
+	}
+	if (start < found->GetNumber()) {
+		// have found feature
+		trDrawBoxs(img, boxf);
+	}
+
+
+
+ //	trDrawBoxs(img, boxc, &cvScalar(232,164,74));
+	trShowImage("src", img);
+	cvWaitKey();
+
+	boxaDestroy(&boxa);
+	boxaDestroy(&boxc);
+	boxaDestroy(&boxf);
+	delete found;			// found should delete after destroy boxf
+
+
+	pixaDestroy(&pixa);
+
+	trExitTessAPI(api);
+	pixDestroy(&pix);
+	cvReleaseImage(&img);
+
+}
 
 
 void pocShowImage(char *src) {
@@ -92,15 +221,15 @@ void pocShowImage(char *src) {
 		return;
 	}
 
-	CvSize	resize;
-	int lmax = MAX(img->width, img->height);
-	double scale = lmax / 600;
-	resize.width = (int)(img->width / scale);
-	resize.height = (int)(img->height / scale);
-
-	IplImage *dst;
-	dst = cvCreateImage(resize, img->depth, img->nChannels);
-	cvResize(img, dst, CV_INTER_LINEAR);
+// 	CvSize	resize;
+// 	int lmax = MAX(img->width, img->height);
+// 	double scale = lmax / 600;
+// 	resize.width = (int)(img->width / scale);
+// 	resize.height = (int)(img->height / scale);
+// 
+// 	IplImage *dst;
+// 	dst = cvCreateImage(resize, img->depth, img->nChannels);
+// 	cvResize(img, dst, CV_INTER_LINEAR);
 
 //	imgerode = cvCreateImage(cvSize(img->width, img->height), img->depth, img->nChannels);
 // 	storage = cvCreateMemStorage(0);
@@ -116,7 +245,7 @@ void pocShowImage(char *src) {
 //  	cvDilate(img, img, NULL, 5);
 // 	cvErode(img, img, NULL, 5);
 
-	img1c = trCloneImg1c(dst, true, 128);
+	img1c = trCloneImg1c(img, true, 160);
 
 	pix = trPixCreateFromIplImage(img1c);
 	api = trInitTessAPI();
@@ -126,8 +255,8 @@ void pocShowImage(char *src) {
 
 
 // 	trDrawLines(img, lines, true);
-	trDrawBoxs(dst, boxa);
-	trShowImage("src", dst);
+	trDrawBoxs(img, boxa);
+	trShowImage("src", img);
 	trShowImage("1c", img1c);
 	cvWaitKey();
 

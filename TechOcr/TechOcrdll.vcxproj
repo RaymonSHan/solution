@@ -203,6 +203,7 @@
   <ItemGroup>
     <ClCompile Include="ImageCommon.cpp" />
     <ClCompile Include="PocTest.cpp" />
+    <ClCompile Include="ProcessFormat.cpp" />
     <ClCompile Include="TechOcrDll.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </PrecompiledHeader>
@@ -224,6 +225,7 @@
   <ItemGroup>
     <ClInclude Include="ImageCommon.h" />
     <ClInclude Include="PocTest.h" />
+    <ClInclude Include="ProcessFormat.h" />
     <ClInclude Include="TechOcrDll.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -22,6 +22,7 @@
 #include "osdetect.h"
 
 #include "rcommon.h"
+#include "ProcessFormat.h"
 
 #define DEFAULT_LANGURE			"chi_sim"
 #define DEFALUT_COLOR			CV_RGB(221, 134, 212)
@@ -34,7 +35,25 @@
 #define THICK_WIDTH				1
 #define DEFAULT_WIDTH			3
 
+struct trFeatureWordFound;
+
+typedef enum EncodeMode {
+	ENCODE_GBK,
+	ENCODE_UTF8
+}EncodeMode;
+
 double comPointToLineDist(int x, int y, int x1, int y1, int x2, int y2);
+int comIsWord(Box *box, Pix *pix);
+int comIsRectCross(Box *b1, Box *b2, int space);
+int comIsRectIsolated(Box *box, Boxa *boxa, int space);
+void comEnlargeBox(Box *box, Box &enlarge, int delta);
+bool comMatchPlace(trFeatureWordFound *one, trFeatureWordFound *two);
+
+
+RESULT trGbkToUtf8(char* gbk, long gsize, char*& utf8, long &usize);
+RESULT trUtf8ToGbk(char* utf8, long usize, char*& gbk, long &gsize);
+
+Boxa* trChoiceBoxInBoxa(Boxa *boxa, Pix *pix);
 
 // following function is for translate data between leptonica and opencv
 Pix* trPixCreateFromIplImage(IplImage *img);
@@ -51,6 +70,7 @@ CvSeq* trCreateHoughLines(IplImage *src, CvMemStorage *storage);
 // following function is major for tesseract
 tesseract::TessBaseAPI* trInitTessAPI(void);
 void trExitTessAPI(tesseract::TessBaseAPI *api);
+char* trTranslateInRect(Box *box, tesseract::TessBaseAPI *api, tesseract::PageSegMode mode, EncodeMode encode);
 
 // above function is inter use
 // following function is declare outside
