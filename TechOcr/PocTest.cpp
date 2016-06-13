@@ -3,6 +3,276 @@
 #define  OUTPUTBOX(b, s)	std::cout << (b)->x << ", " << (b)->y << ", " << (b)->w << ", " << (b)->h << ", " \
 	<< s << std::endl;
 
+void pocPixCreateFromIplImage(char *src, char *dst) {
+	IplImage *img = cvLoadImage(src, 1);     // 1 for is colored
+	if (!img) {
+		return;
+	}
+//	cvSaveImage(dst, img);
+//	Pix* pixs = pixRead("src");
+//	read as Pix, for confirm the data struct
+
+	Pix* pixt;
+	pixt = TrPixCreateFromIplImage(img);
+	if (pixt) {
+		pixWriteAutoFormat(dst, pixt);
+		pixDestroy(&pixt);
+	}
+	cvReleaseImage(&img);
+//	pixDestroy(&pixs);
+}
+
+void pocRotateImage(char *src, int angle, bool clockwise) {
+	IplImage *img, *dst;
+	img = cvLoadImage(src, 1);
+	if (!img) {
+		return;
+	}
+	dst = ComRotateImage(img, 90, false);
+	cvSaveImage(src, dst);
+
+	ComShowImage("dst", dst);
+	cvWaitKey(0);
+	cvReleaseImage(&dst);
+	cvReleaseImage(&img);
+}
+
+void pocFindMaxRect(char *src) {
+	IplImage *img, *dst;
+
+	img = cvLoadImage(src, 0);     // 0 for is gray
+// 	dst = TrCreateMaxContour(img);
+	ComShowImage("src", img);
+	ComShowImage("dst", dst);
+	cvWaitKey(0);
+	cvReleaseImage(&dst);
+	cvReleaseImage(&img);
+}
+
+void pocFindHoughLines(char *src) {
+	IplImage *img, *mimg, *dst, *dst2;
+	CvMemStorage* storage;
+	CvSeq *lines, *lines2;
+
+	img = cvLoadImage(src, 0);     // 0 for gray, 1 for color
+	mimg = cvCloneImage(img);
+
+//  	cvCanny(img, mimg, 50, 150, 3);//±ßÔµ¼ì²â  
+// 	cvPyrMeanShiftFiltering(img, mimg, 3, 15);
+
+// 	dst = TrCreateMaxContour(mimg);
+	storage = cvCreateMemStorage(0);
+
+	int size = MAX(img->width, img->height);
+
+	lines = cvHoughLines2(dst, storage, CV_HOUGH_PROBABILISTIC,
+		size / 1000, CV_PI / 180,
+		(double)size / 8, (double)size / 6, (double)size / 40);
+ 	ComDrawLines(img, lines, true);
+// 	dst2 = TrCreateLine(dst/* only for size**/, lines);
+
+
+	ComShowImage("src", img);
+	ComShowImage("mimg", mimg);
+	ComShowImage("dst", dst);
+	ComShowImage("dst2", dst2);
+
+	cvWaitKey(0);
+	cvReleaseImage(&dst);
+	cvReleaseImage(&dst2);
+	cvReleaseImage(&mimg);
+	cvReleaseImage(&img);
+	cvReleaseMemStorage(&storage);
+}
+
+void pocFindFeatureWords(char *src) {
+	IplImage *img;
+	Pix *pix;
+	tesseract::TessBaseAPI *api;
+	Pixa *pixa;
+	Boxa *boxa, *boxc;
+	Box **box;
+	int i;
+	char *str;
+
+	img = cvLoadImage(src, 1);
+	if (!img) {
+		return;
+	}
+	pix = TrPixCreateFromIplImage(img);
+	api = TechOcrInitTessAPI();
+	api->SetImage(pix);
+// 	boxa = api->GetConnectedComponents(&pixa);
+	//boxa = api->GetWords(&pixa);
+	boxc = TrChoiceBoxInBoxa(api, pix);
+
+	box = boxc->box;
+	for (i = 0; i < boxc->n; i++) {
+		str = TrTranslateInRect(api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK, *box);
+// 		OUTPUTBOX(*box, str);
+		delete[] str;
+		box++;
+	}
+	ComDrawBoxs(img, boxc);
+	ComShowImage("src", img);
+	cvWaitKey(0);
+
+	boxaDestroy(&boxa);
+	boxaDestroy(&boxc);
+
+	pixaDestroy(&pixa);
+
+	TechOcrExitTessAPI(api);
+	pixDestroy(&pix);
+	cvReleaseImage(&img);
+
+}
+
+extern OcrFormat BusinessLicense;
+
+#define MIN_MATCH		6
+// void pocFindFeatureWordsInClass(char *src) {
+// 	IplImage *img;
+// 	Pix *pix;
+// 	tesseract::TessBaseAPI *api;
+// 	Pixa *pixa;
+// 	Boxa *boxa, *boxc, *boxf;
+// 	Box **box;
+// 	int i;
+// 	char *str;
+// 	OcrFeatureWordsFound *found;
+// 	TrFeatureWordFound *result;
+// 	int count = 0;
+// 
+// 	ocrInitBusinessLicense();
+// 
+// 	img = cvLoadImage(src, 1);
+// 	if (!img) {
+// 		return;
+// 	}
+// 	pix = TrPixCreateFromIplImage(img);
+// 	api = TechOcrInitTessAPI();
+// 	api->SetImage(pix);
+// // 	boxa = api->GetConnectedComponents(&pixa);
+// 	//boxa = api->GetWords(&pixa);
+// 	//boxc = TrChoiceBoxInBoxa(api, pix);
+// 	found = new OcrFeatureWordsFound;
+// 
+// 	found->InitFound(&BusinessLicense);
+// 	box = boxc->box;
+// 	for (i = 0; i < boxc->n; i++) {
+// 		Box enlarge;
+// 		ComEnlargeBox(*box, enlarge, 1, 1);
+// 		str = TrTranslateInRect(api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK, &enlarge);
+// // 		str = trTranslateInRect(*box, api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK);
+// 		result = found->AddFound(*box, str);
+// 		if (result) {
+// 			count++;
+// 		}
+//  		OUTPUTBOX(*box, str);
+// 		delete[] str;
+// 		box++;
+// 	}
+// 	int start = 0, match;
+// 	while (start < found->GetNumber())
+// 	{
+// 		boxf = found->ReturnFound(start, match);
+// 		if (match < MIN_MATCH) {
+// 			boxaDestroy(&boxf);
+// 			start++;
+// 		}
+// 		else {
+// 			break;
+// 		}
+// 	}
+// 	if (start < found->GetNumber()) {
+// 		// have found feature
+// 		ComDrawBoxs(img, boxf);
+// 	}
+// 	CvPoint2D32f srcTri[4], desTri[4];
+// 	CvMat *warpMat;
+// 
+// 	found->ReturnCorner(srcTri, desTri);
+// 	for (i = 0; i < 4; i++)
+// 		cvCircle(img, cvPointFrom32f(desTri[i]), 20, CV_RGB(190,11,55));
+// 	warpMat = cvCreateMat(3, 3, CV_64F);
+// 	cvGetPerspectiveTransform(srcTri, desTri, warpMat);
+// 	cvReleaseMat(&warpMat);
+// 
+//  //	trDrawBoxs(img, boxc, &cvScalar(232,164,74));
+// 	ComShowImage("src", img);
+// 	cvWaitKey(0);
+// 
+// 	boxaDestroy(&boxa);
+// 	boxaDestroy(&boxc);
+// 	boxaDestroy(&boxf);
+// 	pixaDestroy(&pixa);
+// 	delete found;			// found should delete after destroy boxf
+// 
+// 	TechOcrExitTessAPI(api);
+// 	pixDestroy(&pix);
+// 	cvReleaseImage(&img);
+// }
+
+void pocApproximateLine(char *filename) {
+	IplImage *srcimg, *thresimg, *contimg, *cloneimg = NULL;
+	CvMemStorage *storage;
+	CvSeq *lines, *linesappr;
+	CvSeq *conners;
+	bool havelarge = false;
+	int loop = 1;
+	IplImage *doingimg, *olddoingimg;
+
+	storage = cvCreateMemStorage(0);
+	srcimg = cvLoadImage(filename, 1);
+
+	doingimg = cvCloneImage(srcimg);
+	while (!havelarge && loop) {
+		olddoingimg = doingimg;
+		thresimg = TrImageThreshold(doingimg);
+		doingimg = TrContourDraw(thresimg, havelarge);
+		loop--;
+		if (havelarge || !loop) {
+			break;
+		}
+		else {
+			cvReleaseImage(&olddoingimg);
+			cvReleaseImage(&thresimg);
+		}
+	}
+	contimg = doingimg;
+
+	lines = TrCreateHoughLines(contimg, storage);
+	linesappr = TrAggregationLines(lines, storage);					// poc only
+	conners = TrGetFourCorner(linesappr, storage, &cvPoint2D32f(srcimg->width / 2, srcimg->height / 2));
+
+	cloneimg = cvCloneImage(srcimg);
+	// 	if (linesappr->total != 4) {
+// 	for (int i = 0; i < linesappr->total; i++) {
+// 		float *p = (float*)cvGetSeqElem(linesappr, i);
+// 		CvPoint p1 = cvPoint((int)(*(p + 4)), (int)(*(p + 5)));
+// 		CvPoint p2 = cvPoint((int)(*(p + 6)), (int)(*(p + 7)));
+// 		cvLine(cloneimg, p1, p2, CV_RGB(23, 132, 231), 3, 8);
+// 		ComDrawLineForFitLine(cloneimg, p, &CV_RGB(23, 132, 231));
+
+// 	}
+	// match four lines
+	// 	}
+
+	ComDrawLines(cloneimg, lines, true);
+	ComShowImage("img", cloneimg);
+	ComShowImage("cont", contimg);
+	cvWaitKey(0);
+	cvReleaseMemStorage(&storage);
+	if (cloneimg)
+		cvReleaseImage(&cloneimg);
+	cvReleaseImage(&contimg);
+	cvReleaseImage(&thresimg);
+	cvReleaseImage(&olddoingimg);
+	cvReleaseImage(&srcimg);
+}
+
+
 #define MIN_CONFIRM				6
 CvSeq *format;
 void pcoPreprocess(char *filename) {
@@ -18,15 +288,15 @@ void pcoPreprocess(char *filename) {
 	int match, rotateloop = 0;
 	CvMemStorage *storage;
 	int i;
-	storage = GetGlobalStorage();
-
+	storage = cvCreateMemStorage(0);
 
 	CvMat *warp1 = cvCreateMat(3, 3, CV_32FC1);
 	CvMat *warp2 = cvCreateMat(3, 3, CV_32FC1);
 
 	src = cvLoadImage(filename, 1);
+	if (!src)
+		return;
 	dst = cvCloneImage(src);
-	pocCreateBusinessLicense();
 	for (;;) {
 		api = TechOcrInitTessAPI();
 		result = TechOcrGetFourCorner(dst, corner, 1);
@@ -37,6 +307,8 @@ void pcoPreprocess(char *filename) {
 			pcorner = corner;
 		}
 		TechOcrCreatePix(dst, dst->width, dst->height, pcorner, pix, warp1);
+
+		feature = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
 		result = TechOcrGetFeatureChar(pix, api, feature);
 		TechOcrFormatMostMatch(feature, bestformat, match, warp2);
 
@@ -50,6 +322,7 @@ void pcoPreprocess(char *filename) {
 		rotateloop++;
 		dst = ComRotateImage(src, 90 * rotateloop, false);
 	}
+
 	pixDestroy(&pix);
 	TechOcrExitTessAPI(api);
 // 	CvSeq *cnow = feature;
@@ -66,7 +339,7 @@ void pcoPreprocess(char *filename) {
 // 		delete[] gb;
 // 	}
 // 	std::cout << std::endl << std::endl;
-	cvRelease((void**)&feature);
+	ComReleaseCharFound(feature);
 
 	CharFound* found, *featurematch;
 	char * ch, *gb;
@@ -74,24 +347,26 @@ void pcoPreprocess(char *filename) {
 	content = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
 	TechOcrDetectWordsInFormat(dst, warp1, warp2, bestformat, content);
 
-// 	for (i = 0; i < content->total; i++) {
-// 		found = (CharFound*)cvGetSeqElem(content, i);
-// 		ch = (char*)found->desc;
-// 		ComUtf8ToGbk(ch, strlen(ch), gb, gsize);
-// 		std::cout << found->rect.x << ", " << found->rect.y << ", CHAR " << ch;
-// 		delete[] gb;
+	for (i = 0; i < content->total; i++) {
+		found = (CharFound*)cvGetSeqElem(content, i);
+		ch = (char*)found->desc;
+		ComUtf8ToGbk(ch, strlen(ch), gb, gsize);
+		std::cout << found->rect.x << ", " << found->rect.y << ", CHAR " << gb;
+		delete[] gb;
 // 		delete[] ch;
-// 		featurematch = (CharFound*)cvGetSeqElem(bestformat, found->found);
-// 		ch = (char*)featurematch->desc;
-// 		ComUtf8ToGbk(ch, strlen(ch), gb, gsize);
-// 		std::cout << ", " << gb << std::endl;
-// 		delete[] gb;
+		featurematch = (CharFound*)cvGetSeqElem(bestformat, found->found);
+		ch = (char*)featurematch->desc;
+		ComUtf8ToGbk(ch, strlen(ch), gb, gsize);
+		std::cout << ", " << gb << std::endl;
+		delete[] gb;
 // 		delete[] ch;
-// 
-// 	}
-	char *output;
-	TechOcrOutput(content, bestformat, output);
-	cvRelease((void**)&content);
+
+	}
+	std::cout << std::endl << std::endl;
+	ComReleaseCharFound(content);
+
+
+
 
 // 	ComShowImage("d1", d1);
 // 	ComShowImage("d2", d2);
@@ -101,6 +376,7 @@ void pcoPreprocess(char *filename) {
 
 	cvReleaseMat(&warp1);
 	cvReleaseMat(&warp2);
+	cvReleaseMemStorage(&storage);
 
 // 	cvReleaseImage(&d2);
 	cvReleaseImage(&dst);
@@ -108,6 +384,10 @@ void pcoPreprocess(char *filename) {
 }
 
 void pocCreateBusinessLicense(void) {
+	static bool havedone = false;
+	if (havedone)
+		return;
+	havedone = true;
 	TechOcrCreateFormat(format, "ÓªÒµÖ´ÕÕ", 3120, 4160);
 
 	TechOcrFormatAddFeature(format, 622, 1638, 61, 69, "Ãû");
@@ -154,4 +434,112 @@ void pocCreateBusinessLicense(void) {
 	// make it faster
 
 	return;
+}
+
+// void pocSystemExit() {
+// // 	CvMemStorage *storage;
+// // 	storage = GetGlobalStorage();
+// // 	if (storage) {
+// // 		cvReleaseMemStorage(&storage);
+// // 	}
+// }
+
+void pocShowImage(char *src) {
+	IplImage *img, *img1c;//, *imgerode;
+//	CvMemStorage* storage;
+	CvSeq *lines;
+
+	Pix *pix;
+	tesseract::TessBaseAPI *api;
+	Pixa *pixa;
+	Boxa *boxa;
+
+	img = cvLoadImage(src, 1);
+	if (!img) {
+		return;
+	}
+
+// 	CvSize	resize;
+// 	int lmax = MAX(img->width, img->height);
+// 	double scale = lmax / 600;
+// 	resize.width = (int)(img->width / scale);
+// 	resize.height = (int)(img->height / scale);
+// 
+// 	IplImage *dst;
+// 	dst = cvCreateImage(resize, img->depth, img->nChannels);
+// 	cvResize(img, dst, CV_INTER_LINEAR);
+
+//	imgerode = cvCreateImage(cvSize(img->width, img->height), img->depth, img->nChannels);
+// 	storage = cvCreateMemStorage(0);
+// 	lines = trCreateHoughLines(img1c, storage);
+	// lines will be free by cvReleaseMemStorage(&storage);
+
+
+// 	IplConvKernel *ck = cvCreateStructuringElementEx(13, 1, 0, 0, CV_SHAPE_CROSS);
+// 	cvErode(img, img, ck, 1);		// enlarge
+// 	cvDilate(img, img, ck, 1);
+// 	cvReleaseStructuringElement(&ck);
+
+//  	cvDilate(img, img, NULL, 5);
+// 	cvErode(img, img, NULL, 5);
+
+	img1c = TrImageThreshold(img);
+
+	pix = TrPixCreateFromIplImage(img1c);
+	api = TechOcrInitTessAPI();
+	api->SetImage(pix);
+// 	boxa = api->GetConnectedComponents(&pixa);
+	boxa = api->GetWords(&pixa);
+
+
+// 	trDrawLines(img, lines, true);
+	ComDrawBoxs(img, boxa);
+	ComShowImage("src", img);
+	ComShowImage("1c", img1c);
+	cvWaitKey(0);
+
+	TechOcrExitTessAPI(api);
+	pixDestroy(&pix);
+
+// 	cvReleaseMemStorage(&storage);
+	cvReleaseImage(&img1c);
+//	cvReleaseImage(&imgerode);
+
+
+	cvReleaseImage(&img);
+}
+
+void pocPointToLineDist(void) {
+	double aa = ComPointToLineDist(0, 0, 0, 1, 1, 0);
+	return;
+}
+
+void pocIsIntersect(void) {
+	CvPoint a1, a2, b1, b2;
+	CvPoint2D32f c1;
+	a1 = cvPoint(1, 1);
+	a2 = cvPoint(2, 2);
+	b1 = cvPoint(0, 5);
+	b2 = cvPoint(4, 1);
+	bool result = ComIsLineIntersect(&a1, &a2, &b1, &b2, c1);
+	return;
+}
+
+// http://www.linuxidc.com/Linux/2015-01/111962.htm
+// this is what I need
+// should read http://blog.csdn.net/qq61394323/article/details/10018967
+// http://blog.csdn.net/wangyaninglm/article/details/41863867
+void pocNewContour(char *src) {
+	IplImage *img, *mimg;
+
+	img = cvLoadImage(src, 1);
+	if (!img) {
+		return;
+	}
+	mimg = cvCloneImage(img);
+
+	cvPyrMeanShiftFiltering(img, mimg, 3, 15);
+	ComShowImage("src", img);
+	ComShowImage("mean", mimg);
+	cvWaitKey(0);
 }

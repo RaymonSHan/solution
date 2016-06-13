@@ -159,6 +159,9 @@ typedef struct CharFound {
 	char *desc;
 }CharFound, *pCharFound;
 
+// 释放CharFound序列，以及内部字符串。
+void ComReleaseCharFound(CvSeq *found);
+
 typedef enum TrEncodeMode {
 	ENCODE_GBK,
 	ENCODE_UTF8
@@ -211,7 +214,7 @@ RESULT TechOcrCreatePix(IplImage *img, int w, int h, CvPoint2D32f *corner, Pix *
 // corner：来源于TechOcrGetFourCorner()
 // api：来源于TrInitTessAPI()
 // feature序列，需用cvRelease()释放
-RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api,	CvSeq *&feature);
+RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api,	CvSeq *feature);
 
 // 第二步主要工作，定义模板
 //

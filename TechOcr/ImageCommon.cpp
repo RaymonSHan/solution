@@ -275,8 +275,8 @@ IplImage* TrContourDraw(IplImage *src, bool &havelarge, double arate, double lra
 	if (!src) {
 		return NULL;
 	}
-	nowstore = cvCreateMemStorage(0);
-	conts = cvCreateSeq(CV_SEQ_ELTYPE_POINT, sizeof(CvSeq), sizeof(CvPoint), nowstore);
+	nowstore = cvCreateMemStorage(0);													// release in self function
+	conts = cvCreateSeq(CV_SEQ_ELTYPE_POINT, sizeof(CvSeq), sizeof(CvPoint), nowstore);	// release in self function
 	proc = cvCloneImage(src);
 	dst = cvCreateImage(cvSize(src->width, src->height), IPL_DEPTH_8U, 1);
 	cvZero(dst);
@@ -308,7 +308,7 @@ IplImage* TrContourDraw(IplImage *src, bool &havelarge, double arate, double lra
 	return dst;
 }
 CvSeq* TrCreateHoughLines(IplImage *src, CvMemStorage *storage, double thresholdrate, double lengthrate, double seprationrate) {
-	CvSeq* lines = 0;
+	CvSeq* lines = NULL;
 	double size = (double)MIN(src->width, src->height);
 	double rho = size / 1000;
 	double theta = 2 * CV_PI / 180;
@@ -319,6 +319,7 @@ CvSeq* TrCreateHoughLines(IplImage *src, CvMemStorage *storage, double threshold
 
 	lines = cvHoughLines2(src, storage, CV_HOUGH_PROBABILISTIC, rho, theta,
 		threshold, min_length, sepration_connection);
+// 	 	cvRelease((void**)lines);
 	return lines;
 }
 CvSeq* TrAggregationLines(CvSeq *lines, CvMemStorage *storage, double thresholdrate) {
@@ -432,6 +433,9 @@ CvSeq* TrChoiceLinesInFitLines(CvSeq *lines, CvMemStorage *storage) {
 	}
 	pushMaxLine(hlines, output);
 	pushMaxLine(vlines, output);
+	cvRelease((void**)&hlines);
+	cvRelease((void**)&vlines);
+
 	return output;
 }
 CvSeq* TrGetFourCorner(CvSeq *fitlines, CvMemStorage *storage, CvPoint2D32f *center) {
@@ -505,7 +509,10 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 	contimg = doingimg;
 
 	lines = TrCreateHoughLines(contimg, storage);
+// 	 	cvRelease((void**)lines);
+
 	linesappr = TrAggregationLines(lines, storage, minsize / 30);
+// 	cvRelease((void**)linesappr);
 	if (false) {			// should add condition for draw 
 		ComDrawLineForFitLine(img, linesappr);
 	}
@@ -516,6 +523,7 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 	{
 		if (linesappr->total != 4) {
 			linesappr = TrChoiceLinesInFitLines(linesappr, storage);
+			
 			result = RESULT_MAYBE;
 		}
 		conners = TrGetFourCorner(linesappr, storage, &cvPoint2D32f(img->width / 2, img->height / 2));
@@ -528,6 +536,9 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 				corner++;
 			}
 		}
+// 		cvRelease((void**)linesappr);
+// 		cvRelease((void**)conners);
+// 		cvRelease((void**)lines);
 	}
 	cvReleaseMemStorage(&storage);
 	cvReleaseImage(&contimg);
@@ -545,6 +556,18 @@ CvMemStorage* GetGlobalStorage(void) {
 	}
 	return GlobalStorage;
 }
+void ComReleaseCharFound(CvSeq *foundlist) {
+	int i;
+	CharFound *found;
+	for (i = 0; i < foundlist->total; i++) {
+		found = (CharFound*)cvGetSeqElem(foundlist, i);
+		if (found->desc) {
+			delete[] found->desc;
+		}
+	}
+	cvRelease((void**)&foundlist);
+}
+
 static CvSeq* GetFormatStart(void) {
 	static CvSeq FormatStart;
 	static bool first = true;
@@ -704,11 +727,9 @@ tesseract::TessBaseAPI* TechOcrInitTessAPI() {
 	int rc = api->Init(NULL, DEFAULT_LANGURE, tesseract::OEM_DEFAULT);
 	if (rc)
 		return NULL;
-// 	storage = cvCreateMemStorage(0);
 	return api;
 }
 void TechOcrExitTessAPI(tesseract::TessBaseAPI *api) {
-// 	cvReleaseMemStorage(&storage);
 	api->End();
 	delete api;
 }
@@ -794,26 +815,25 @@ RESULT TechOcrCreatePix(IplImage *img, int w, int h, CvPoint2D32f *corner, Pix *
 	}
 	return RESULT_OK;
 }
-RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api, CvSeq *&feature) {
+RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api, CvSeq *feature) {
 	RESULT result;
 	Boxa *boxa;
 	Box **box;
 	char *str;
 	int i;
 	CharFound found;
-	CvMemStorage *storage;
+// 	CvMemStorage *storage;
 
 	api->SetImage(pix);
 
 	boxa = TrChoiceBoxInBoxa(api, pix);
-	storage = GetGlobalStorage();
-	feature = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
 
 	box = boxa->box;
 	for (i = 0; i < boxa->n; i++) {
 		str = TrTranslateInRect(api, tesseract::PSM_SINGLE_CHAR, ENCODE_UTF8, *box);
 		Assign(found.rect, **box);
 		AssignRemoveCR(found.found, str, ENCODE_UTF8);
+		found.desc = NULL;
 		cvSeqPush(feature, &found);
 		delete[] str;
 		box++;
@@ -832,7 +852,7 @@ RESULT TechOcrCreateFormat(CvSeq *&format, char *name, int w, int h, TrEncodeMod
 	while (last->h_next) {
 		last = last->h_next;
 	}
-	format = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
+	format = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);			// this is global, not free
 	last->h_next = format;
 	format->h_next = NULL;
 
@@ -849,6 +869,7 @@ RESULT TechOcrFormatAddFeature(CvSeq *format, int x, int y, int w, int h, char *
 	Assign(found.rect, x, y, w, h);
 	AssignRemoveCR(found.found, c, encode);
 	found.chartype = CHARTYPE_FEATURE;
+	found.desc = NULL;
 	cvSeqPush(format, &found);
 	return RESULT_OK;
 }
@@ -1022,7 +1043,7 @@ void TrGetCornerInMatch(CvSeq *feature, CvSeq *format, int maxfea, int maxfor, C
 	}
 }
 #define MIN_CONFIRM				6
-RESULT TechOcrFormatMostMatch(CvSeq *feature, CvSeq *&bestformat, int &maxmatch, CvMat *wrap) {
+RESULT TechOcrFormatMostMatch(CvSeq *feature, CvSeq *&bestformat, int &maxmatch, CvMat *wrap) {		// *& only returen pointer
 	CvSeq *now;
 	RESULT result = RESULT_ERR;
 	int matched;
@@ -1154,21 +1175,14 @@ RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvS
 		Assign(foundcontent.rect, rect.x, rect.y, rect.width, rect.height);
 		cvSeqPush(content, &foundcontent);
 		//	found->desc = str;
-		std::cout << str << std::endl;
+		//	std::cout << str << std::endl;
 	}
+	boxaDestroy(&boxa);
+	pixaDestroy(&pixa);
+	cvReleaseImage(&rotated);
+	pixDestroy(&pix);
+	TechOcrExitTessAPI(api);
 	return RESULT_OK;
-
-// 	IplImage *d1, *d2;
-	// 	d1 = TrWarpPerspective(dst, dst->width, dst->height, warp1);
-// 	d2 = 
-	// 	api->SetRectangle(1000, 400, 2000, 3000); can add and should modify start x and y.
-
-	// 	CvMemStorage *storage;
-	// 	storage = GetGlobalStorage();
-	// 	feature = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
-
-
-
 }
 RESULT TechOcrOutput(CvSeq *content, CvSeq *bestformat, char *&output) {
 	CharFound* found, *featurematch;
