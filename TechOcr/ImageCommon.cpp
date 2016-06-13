@@ -359,18 +359,18 @@ CvSeq* TrAggregationLines(CvSeq *lines, CvMemStorage *storage, double thresholdr
 		}
 	}
 // for display to confirm
-	CvPoint *line1, *line2;
-	cnow = cstart;
-	while (cnow) {
-		std::cout << cnow->total << std::endl;
-		for (i = 0; i < cnow->total; i += 2) {
-			line1 = (CvPoint*)cvGetSeqElem(cnow, i);
-			line2 = (CvPoint*)cvGetSeqElem(cnow, i + 1);
-			std::cout << line1->x << ", " << line1->y << ", TO " << line2->x << ", " << line2->y << std::endl;
-		}
-		std::cout << std::endl << std::endl;
-		cnow = cnow->h_next;
-	}
+// 	CvPoint *line1, *line2;
+// 	cnow = cstart;
+// 	while (cnow) {
+// 		std::cout << cnow->total << std::endl;
+// 		for (i = 0; i < cnow->total; i += 2) {
+// 			line1 = (CvPoint*)cvGetSeqElem(cnow, i);
+// 			line2 = (CvPoint*)cvGetSeqElem(cnow, i + 1);
+// 			std::cout << line1->x << ", " << line1->y << ", TO " << line2->x << ", " << line2->y << std::endl;
+// 		}
+// 		std::cout << std::endl << std::endl;
+// 		cnow = cnow->h_next;
+// 	}
 
 	cnow = cstart;
 	output = cvCreateSeq(CV_32FC4, sizeof(CvSeq), sizeof(float) * 4, storage);
@@ -500,7 +500,7 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 
 	lines = TrCreateHoughLines(contimg, storage);
 	linesappr = TrAggregationLines(lines, storage, minsize / 30);
-	if (true) {			// should add condition for draw 
+	if (false) {			// should add condition for draw 
 		ComDrawLineForFitLine(img, linesappr);
 	}
 	if (!linesappr || linesappr->total == 0) {
@@ -531,14 +531,67 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 }
 
 
+int BITMASK32[4] = { 0xff, 0xffff, 0xffffff, 0xffffffff };
+static CvMemStorage *GlobalStorage = NULL;
+static CvMemStorage* GetGlobalStorage(void) {
+	if (!GlobalStorage) {
+		GlobalStorage = cvCreateMemStorage(0);
+	}
+	return GlobalStorage;
+}
+static CvSeq FormatStart;
+static CvSeq* GetFormatStart(void) {
+	static bool first = true;
+	if (!first) {
+		cvZero(&FormatStart);
+		first = false;
+	}
+	return &FormatStart;
+}
+static void Assign(CvRect &rect, Box box) {
+	rect.x = box.x;
+	rect.y = box.y;
+	rect.width = box.w;
+	rect.height = box.h;
+}
+static void Assign(CvRect &rect, int x, int y, int w, int h) {
+	rect.x = x;
+	rect.y = y;
+	rect.width = w;
+	rect.height = h;
+}
+static void AssignRemoveCR(int &i, char *c, TrEncodeMode encode) {
+	char *utf8;
+	long usize;
+	unsigned char *uc;
+	int l;
+	if (encode == ENCODE_GBK) {
+		ComGbkToUtf8(c, strlen(c), utf8, usize);
+		c = utf8;
+	}
+	l = strlen(c);
+	uc = (unsigned char*)c;
+	while (l && uc[l - 1] < 0x20) {
+		l--;
+	}
+	if (l > 4 || l <= 0) {
+		i = 0;
+	}
+	else {
+		i = *((int*)c) & BITMASK32[l - 1];
+	}
+	if (encode == ENCODE_GBK) {
+		delete[] utf8;
+	}
+}
 bool ComIsWordBox(Box *box, Pix *pix, int largerate, int smallrate) {
 	int l, s, bl, bs;
 	s = MIN(pix->w, pix->h);
 	l = MAX(pix->w, pix->h);
 	bs = MIN(box->w, box->h);
 	bl = MAX(box->w, box->h);
-	if (box->w > s / largerate && box->w < l / smallrate &&
-		box->h > s / largerate && box->h < l / smallrate &&
+	if (box->w > s / smallrate && box->w < l / largerate &&
+		box->h > s / smallrate && box->h < l / largerate &&
 		bl / bs < 2) {
 		return true;
 	}
@@ -557,7 +610,6 @@ bool ComIsBoxIsolated(Box *box, Boxa *boxa, int space) {
 	if (count == 1) return true;
 	else return false;
 }
-
 IplImage* TrWarpPerspective(IplImage *img, CvPoint2D32f *corner) {
 	CvPoint2D32f dstcornet[4];
 	CvMat *warp_mat = cvCreateMat(3, 3, CV_32FC1);
@@ -619,19 +671,19 @@ Pix* TrPixCreateFromIplImage(IplImage *img) {
 	}
 	return pix;
 }
-tesseract::TessBaseAPI* TrInitTessAPI(Pix *pix) {
+tesseract::TessBaseAPI* TechOcrInitTessAPI() {
 	tesseract::TessBaseAPI *api = new tesseract::TessBaseAPI;
 	int rc = api->Init(NULL, DEFAULT_LANGURE, tesseract::OEM_DEFAULT);
 	if (rc)
 		return NULL;
-	api->SetImage(pix);
+// 	storage = cvCreateMemStorage(0);
 	return api;
 }
-void TrExitTessAPI(tesseract::TessBaseAPI *api) {
+void TechOcrExitTessAPI(tesseract::TessBaseAPI *api) {
+// 	cvReleaseMemStorage(&storage);
 	api->End();
 	delete api;
 }
-
 Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
 	Pixa *pixa;
 	Boxa *boxa, *boxc, *boxr;
@@ -639,11 +691,13 @@ Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
 	int i;
 	int size = MAX(pix->w, pix->h);
 
-	boxa = api->GetConnectedComponents(&pixa);
-//	boxa = api->GetWords(&pixa);
+	api->SetImage(pix);
+// 	boxa = api->GetConnectedComponents(&pixa);
+	boxa = api->GetWords(&pixa);
 	if (!boxa || !boxa->box) {
 		return NULL;
 	}
+
 	boxc = boxaCreate(boxa->n);
 	box = boxa->box;
 	for (i = 0; i < boxa->n; i++) {
@@ -653,11 +707,13 @@ Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
 		}
 		box++;
 	}
+	boxaDestroy(&boxa);
+// 	return boxc;
 
 	boxr = boxaCreate(boxc->n);
 	box = boxc->box;
 	for (i = 0; i < boxc->n; i++) {
-		if (ComIsBoxIsolated(*box, boxc, size / 300) == RESULT_OK) {
+		if (ComIsBoxIsolated(*box, boxc, size / 300)) {
 			boxaAddBox(boxr, *box, L_CLONE);
 		}
 		box++;
@@ -665,8 +721,7 @@ Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
 	boxaDestroy(&boxc);
 	return boxr;
 }
-
-char* TrTranslateInRect(Box *box, tesseract::TessBaseAPI *api, tesseract::PageSegMode mode, TrEncodeMode encode) {
+char* TrTranslateInRect(tesseract::TessBaseAPI *api, tesseract::PageSegMode mode, TrEncodeMode encode, Box *box) {
 	// encode for ENCODE_GB2312 or ENCODE_UTF8
 	char *utfstr, *str;
 	long gsize;
@@ -685,9 +740,79 @@ char* TrTranslateInRect(Box *box, tesseract::TessBaseAPI *api, tesseract::PageSe
 	}
 	return str;
 }
+RESULT TechOcrCreatePix(IplImage *img, CvPoint2D32f *corner, Pix *&pix) {
+	IplImage *dst;
 
+	if (corner) {
+		dst = TrWarpPerspective(img, corner);
+	}
+	else {
+		dst = img;
+	}
+	pix = TrPixCreateFromIplImage(dst);
+	if (corner) {
+		cvReleaseImage(&dst);
+	}
+	return RESULT_OK;
+}
+RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api, CvSeq *&feature) {
+	RESULT result;
+	Boxa *boxa;
+	Box **box;
+	char *str;
+	int i;
+	CharFound found;
+	CvMemStorage *storage;
 
+	boxa = TrChoiceBoxInBoxa(api, pix);
+	storage = GetGlobalStorage();
+	feature = cvCreateSeq(CV_32SC(6), sizeof(CvSeq), sizeof(CharFound), storage);
 
+	box = boxa->box;
+	for (i = 0; i < boxa->n; i++) {
+		str = TrTranslateInRect(api, tesseract::PSM_SINGLE_CHAR, ENCODE_UTF8, *box);
+		Assign(found.rect, **box);
+		AssignRemoveCR(found.found, str, ENCODE_UTF8);
+		cvSeqPush(feature, &found);
+		delete[] str;
+		box++;
+	}
+	boxaDestroy(&boxa);
+	return RESULT_OK;
+}
+
+RESULT TechOcrCreateFormat(CvSeq *&format) {
+	CvMemStorage *storage;
+	CvSeq *last;
+
+	last = GetFormatStart();
+	storage = GetGlobalStorage();
+	while (last->h_next) {
+		last = last->h_next;
+	}
+	format = cvCreateSeq(CV_32SC(6), sizeof(CvSeq), sizeof(CharFound), storage);
+	last->h_next = format;
+	format->h_next = NULL;
+	return RESULT_OK;
+}
+RESULT TechOcrFormatAddFeature(CvSeq *format, int x, int y, int w, int h, char *c, TrEncodeMode encode) {
+	CharFound found;
+
+	Assign(found.rect, x, y, w, h);
+	AssignRemoveCR(found.found, c, encode);
+	found.chartype = CHARTYPE_FEATURE;
+	cvSeqPush(format, &found);
+	return RESULT_OK;
+}
+RESULT TechOcrFormatAddContent(CvSeq *format, int x, int y, int w, int h, char *c, TrEncodeMode encode) {
+	CharFound found;
+
+	Assign(found.rect, x, y, w, h);
+	AssignRemoveCR(found.found, c, encode);
+	found.chartype = CHARTYPE_CONTENT;
+	cvSeqPush(format, &found);
+	return RESULT_OK;
+}
 
 
 #define DELTA_RATE 0.1

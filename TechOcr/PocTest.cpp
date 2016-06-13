@@ -32,7 +32,7 @@ void pocRotateImage(char *src, int angle, bool clockwise) {
 	cvSaveImage(src, dst);
 
 	ComShowImage("dst", dst);
-	cvWaitKey();
+	cvWaitKey(0);
 	cvReleaseImage(&dst);
 	cvReleaseImage(&img);
 }
@@ -44,7 +44,7 @@ void pocFindMaxRect(char *src) {
 	dst = TrCreateMaxContour(img);
 	ComShowImage("src", img);
 	ComShowImage("dst", dst);
-	cvWaitKey();
+	cvWaitKey(0);
 	cvReleaseImage(&dst);
 	cvReleaseImage(&img);
 }
@@ -77,7 +77,7 @@ void pocFindHoughLines(char *src) {
 	ComShowImage("dst", dst);
 	ComShowImage("dst2", dst2);
 
-	cvWaitKey();
+	cvWaitKey(0);
 	cvReleaseImage(&dst);
 	cvReleaseImage(&dst2);
 	cvReleaseImage(&mimg);
@@ -100,29 +100,29 @@ void pocFindFeatureWords(char *src) {
 		return;
 	}
 	pix = TrPixCreateFromIplImage(img);
-	api = TrInitTessAPI(pix);
-// 	api->SetImage();
+	api = TechOcrInitTessAPI();
+	api->SetImage(pix);
 // 	boxa = api->GetConnectedComponents(&pixa);
 	//boxa = api->GetWords(&pixa);
 	boxc = TrChoiceBoxInBoxa(api, pix);
 
 	box = boxc->box;
 	for (i = 0; i < boxc->n; i++) {
-		str = TrTranslateInRect(*box, api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK);
+		str = TrTranslateInRect(api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK, *box);
 		OUTPUTBOX(*box, str);
 		delete[] str;
 		box++;
 	}
 	ComDrawBoxs(img, boxc);
 	ComShowImage("src", img);
-	cvWaitKey();
+	cvWaitKey(0);
 
 	boxaDestroy(&boxa);
 	boxaDestroy(&boxc);
 
 	pixaDestroy(&pixa);
 
-	TrExitTessAPI(api);
+	TechOcrExitTessAPI(api);
 	pixDestroy(&pix);
 	cvReleaseImage(&img);
 
@@ -151,8 +151,8 @@ void pocFindFeatureWordsInClass(char *src) {
 		return;
 	}
 	pix = TrPixCreateFromIplImage(img);
-	api = TrInitTessAPI(pix);
-// 	api->SetImage(pix);
+	api = TechOcrInitTessAPI();
+	api->SetImage(pix);
 // 	boxa = api->GetConnectedComponents(&pixa);
 	//boxa = api->GetWords(&pixa);
 	//boxc = TrChoiceBoxInBoxa(api, pix);
@@ -163,7 +163,7 @@ void pocFindFeatureWordsInClass(char *src) {
 	for (i = 0; i < boxc->n; i++) {
 		Box enlarge;
 		ComEnlargeBox(*box, enlarge, 1);
-		str = TrTranslateInRect(&enlarge, api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK);
+		str = TrTranslateInRect(api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK, &enlarge);
 // 		str = trTranslateInRect(*box, api, tesseract::PSM_SINGLE_CHAR, ENCODE_GBK);
 		result = found->AddFound(*box, str);
 		if (result) {
@@ -201,7 +201,7 @@ void pocFindFeatureWordsInClass(char *src) {
 
  //	trDrawBoxs(img, boxc, &cvScalar(232,164,74));
 	ComShowImage("src", img);
-	cvWaitKey();
+	cvWaitKey(0);
 
 	boxaDestroy(&boxa);
 	boxaDestroy(&boxc);
@@ -209,7 +209,7 @@ void pocFindFeatureWordsInClass(char *src) {
 	pixaDestroy(&pixa);
 	delete found;			// found should delete after destroy boxf
 
-	TrExitTessAPI(api);
+	TechOcrExitTessAPI(api);
 	pixDestroy(&pix);
 	cvReleaseImage(&img);
 }
@@ -262,7 +262,7 @@ void pocApproximateLine(char *filename) {
 	ComDrawLines(cloneimg, lines, true);
 	ComShowImage("img", cloneimg);
 	ComShowImage("cont", contimg);
-	cvWaitKey();
+	cvWaitKey(0);
 	cvReleaseMemStorage(&storage);
 	if (cloneimg)
 		cvReleaseImage(&cloneimg);
@@ -271,6 +271,54 @@ void pocApproximateLine(char *filename) {
 	cvReleaseImage(&olddoingimg);
 	cvReleaseImage(&srcimg);
 }
+
+void pcoPreprocess(char *filename) {
+	CvPoint2D32f corner[4];
+	RESULT result;
+	IplImage *src = cvLoadImage(filename, 1);
+// 	IplImage *dst;
+	Pix *pix;
+	tesseract::TessBaseAPI* api;
+
+	CvSeq *feature;
+
+	result = TechOcrGetFourCorner(src, corner, 1);
+	if (result == RESULT_OK) {
+		TechOcrCreatePix(src, corner, pix);
+	}
+	else {
+		TechOcrCreatePix(src, NULL, pix);
+	}
+	api = TechOcrInitTessAPI();
+	result = TechOcrGetFeatureChar(pix, api, feature);
+
+	CvSeq *cnow = feature;
+	int i;
+	CharFound *found;
+	char *ch;
+	char *gb;
+	long gsize;
+	for (i = 0; i < cnow->total; i++) {
+		found = (CharFound*)cvGetSeqElem(cnow, i);
+		ch = (char*)&found->found;
+		ComUtf8ToGbk(ch, strlen(ch), gb, gsize);
+		std::cout << found->rect.x << ", " << found->rect.y << ", CHAR " << gb << std::endl;
+		delete[] gb;
+	}
+	std::cout << std::endl << std::endl;
+
+
+
+
+// 	ComShowImage("aa", dst);
+	cvWaitKey(0);
+
+
+	pixDestroy(&pix);
+	TechOcrExitTessAPI(api);
+// 	cvReleaseImage(&src);
+}
+
 
 void pocShowImage(char *src) {
 	IplImage *img, *img1c;//, *imgerode;
@@ -314,8 +362,8 @@ void pocShowImage(char *src) {
 	img1c = TrImageThreshold(img);
 
 	pix = TrPixCreateFromIplImage(img1c);
-	api = TrInitTessAPI(pix);
-// 	api->SetImage(pix);
+	api = TechOcrInitTessAPI();
+	api->SetImage(pix);
 // 	boxa = api->GetConnectedComponents(&pixa);
 	boxa = api->GetWords(&pixa);
 
@@ -324,9 +372,9 @@ void pocShowImage(char *src) {
 	ComDrawBoxs(img, boxa);
 	ComShowImage("src", img);
 	ComShowImage("1c", img1c);
-	cvWaitKey();
+	cvWaitKey(0);
 
-	TrExitTessAPI(api);
+	TechOcrExitTessAPI(api);
 	pixDestroy(&pix);
 
 // 	cvReleaseMemStorage(&storage);
@@ -369,5 +417,5 @@ void pocNewContour(char *src) {
 	cvPyrMeanShiftFiltering(img, mimg, 3, 15);
 	ComShowImage("src", img);
 	ComShowImage("mean", mimg);
-	cvWaitKey();
+	cvWaitKey(0);
 }

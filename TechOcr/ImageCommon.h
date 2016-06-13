@@ -37,10 +37,7 @@
 
 struct TrFeatureWordFound;
 
-typedef enum TrEncodeMode {
-	ENCODE_GBK,
-	ENCODE_UTF8
-}TrEncodeMode;
+
 
 // 返回点到直线的距离。x、y确定点。x1、y1，x2、y2确定直线。
 // 算法取自 http://blog.csdn.net/hhhh63/article/details/25030143。
@@ -137,6 +134,8 @@ CvSeq* TrChoiceLinesInFitLines(CvSeq *lines, CvMemStorage *storage);
 // center：图像中心点，用于判断。
 CvSeq* TrGetFourCorner(CvSeq *fitlines, CvMemStorage *storage, CvPoint2D32f *center);
 
+// 第一步最后工作，确定投影变换矩阵
+//
 // 调用以上函数，在指定图像中，找到矩形区域的四个顶点坐标。
 // img：彩色24bit图像。
 // corner：指向CvPoint2D32f[4]，当返回RESULT_OK时有效。
@@ -145,6 +144,18 @@ CvSeq* TrGetFourCorner(CvSeq *fitlines, CvMemStorage *storage, CvPoint2D32f *cen
 RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop = DEFAULT_LOOP);
 
 
+#define CHARTYPE_FEATURE			0
+#define CHARTYPE_CONTENT			1
+typedef struct CharFound {
+	CvRect rect;
+	int found;
+	int chartype;
+}CharFound, *pCharFound;
+
+typedef enum TrEncodeMode {
+	ENCODE_GBK,
+	ENCODE_UTF8
+}TrEncodeMode;
 
 // 根据矩形大小，判定是否为识别字区域。
 // 需小于 1/LARGE_RATE 屏幕尺寸，大于 1/SMALL_RATE 屏幕尺寸
@@ -163,17 +174,46 @@ IplImage* TrWarpPerspective(IplImage *img, CvPoint2D32f *corner);
 // 将OpenCV的IplImage格式，转换为Leptonica的Pix格式。
 Pix* TrPixCreateFromIplImage(IplImage *img);
 
-// 初始化Tesseract引擎，并装载图像。
-tesseract::TessBaseAPI* TrInitTessAPI(Pix *pix);
+// 初始化Tesseract识别引擎.
+tesseract::TessBaseAPI* TechOcrInitTessAPI();
 
 // 终止识别引擎。
-void TrExitTessAPI(tesseract::TessBaseAPI *api);
+void TechOcrExitTessAPI(tesseract::TessBaseAPI *api);
 
 // 在图像中，找到可能包含识别字的矩形区域。
+// 返回值需要用boxaDestory()释放。
 Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix);
 
+// 按指定模式、指定编码，识别指定区域中的文字。
+// 返回值需要用delete[]释放。
+char* TrTranslateInRect(tesseract::TessBaseAPI *api, tesseract::PageSegMode mode, TrEncodeMode encode, Box *box);
 
-char* TrTranslateInRect(Box *box, tesseract::TessBaseAPI *api, tesseract::PageSegMode mode, TrEncodeMode encode);
+// 第二步主要工作，预识别特征字
+//
+// 按投影变换矩阵，生成Pix。
+RESULT TechOcrCreatePix(IplImage *img, CvPoint2D32f *corner, Pix *&pix);
+
+// 对指定图像进行预处理，获取特征字及其位置坐标。
+// corner：来源于TechOcrGetFourCorner()
+// api：来源于TrInitTessAPI()
+// feature序列，需用cvRelease()释放
+RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api,	CvSeq *&feature);
+
+// 第二步主要工作，定义模板
+//
+// 定义模板，创建模板
+RESULT TechOcrCreateFormat(CvSeq *&format);
+// 定义模板，添加特征字
+RESULT TechOcrFormatAddFeature(CvSeq *format, int x, int y, int w, int h, char *c, TrEncodeMode encode = ENCODE_GBK);
+// 定义模板，添加识别内容
+RESULT TechOcrFormatAddContent(CvSeq *format, int x, int y, int w, int h, char *c, TrEncodeMode encode = ENCODE_GBK);
+
+
+// 第二步最后工作，确定模板
+//
+// 根据特征字位置，判定模板，并返回变换矩阵
+// format：当输入非0时，仅判定此模板格式；如为0，寻找最适合的模板。
+RESULT TechOcrChoiceFormat(CvSeq *feature, CvSeq *&format, CvPoint2D32f *corner);
 
 
 bool ComMatchPlace(TrFeatureWordFound *one, TrFeatureWordFound *two);

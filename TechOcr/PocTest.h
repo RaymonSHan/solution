@@ -10,6 +10,7 @@ void pocFindMaxRect(char *src);
 void pocFindHoughLines(char *src);
 void pocFindFeatureWords(char *src);
 void pocFindFeatureWordsInClass(char *src);
+void pcoPreprocess(char *filename);
 
 void pocShowImage(char *src);
 
