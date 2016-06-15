@@ -1,4 +1,6 @@
 #include "ImageCommon.h"
+#include "MemoryCheck.h"
+
 double ComPointToLineDist(int x, int y, int x1, int y1, int x2, int y2) {
 	double a = (x2 - x1) * (y - y1) - (y2 - y1) * (x - x1);
 	double b = sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
@@ -74,7 +76,7 @@ void ComEnlargeRect(CvRect *box, CvRect &enlarge, int deltax, int deltay) {
 	enlarge.height = box->height + deltay + deltay;
 }
 IplImage* ComRotateImage(IplImage *src, int angle, bool clockwise) {
-	IplImage *dst = NULL, *temp;
+	IplImage *dst = NULL, *temp = NULL;
 	int anglecalc;
 	int width, height;
 	int templength, tempx, tempy;
@@ -98,8 +100,10 @@ IplImage* ComRotateImage(IplImage *src, int angle, bool clockwise) {
 	tempy = (templength + 1) / 2 - src->height / 2;
 
 	dst = cvCreateImage(cvSize(width, height), src->depth, src->nChannels);
+	NEW_IPLIMAGE
 	cvZero(dst);
 	temp = cvCreateImage(cvSize(templength, templength), src->depth, src->nChannels);
+	NEW_IPLIMAGE
 	cvZero(temp);
 
 	cvSetImageROI(temp, cvRect(tempx, tempy, src->width, src->height));
@@ -121,6 +125,7 @@ IplImage* ComRotateImage(IplImage *src, int angle, bool clockwise) {
 	M = cvMat(2, 3, CV_32F, m);
 	cvGetQuadrangleSubPix(temp, dst, &M);
 	cvReleaseImage(&temp);
+	DEL_IPLIMAGE
 	return dst;
 };
 RESULT ComGbkToUtf8(char* gbk, long gsize, char*& utf8, long &usize) {
@@ -130,9 +135,10 @@ RESULT ComGbkToUtf8(char* gbk, long gsize, char*& utf8, long &usize) {
 
 	usize = WideCharToMultiByte(CP_UTF8, 0, strSrc, unicodelen, NULL, 0, NULL, NULL);
 	utf8 = new char[usize + 16];
+	NEW_STRING
 	WideCharToMultiByte(CP_UTF8, 0, strSrc, unicodelen, (LPSTR)utf8, usize, NULL, NULL);
 	utf8[usize] = 0;
-	delete[]strSrc;
+	delete[] strSrc;
 	return RESULT_OK;
 }
 RESULT ComUtf8ToGbk(char* utf8, long usize, char*& gbk, long &gsize) {
@@ -142,9 +148,10 @@ RESULT ComUtf8ToGbk(char* utf8, long usize, char*& gbk, long &gsize) {
 
 	gsize = WideCharToMultiByte(CP_ACP, 0, strSrc, unicodelen, NULL, 0, NULL, NULL);
 	gbk = new char[gsize + 16];
+	NEW_STRING
 	WideCharToMultiByte(CP_ACP, 0, strSrc, unicodelen, (LPSTR)gbk, gsize, NULL, NULL);
 	gbk[gsize] = 0;
-	delete[]strSrc;
+	delete[] strSrc;
 	return RESULT_OK;
 }
 void ComDrawBoxs(IplImage *img, Boxa *boxa, CvScalar *color, int width) {
@@ -250,6 +257,7 @@ IplImage* TrImageThreshold(IplImage *src, int gaussianx, int gaussiany, int thre
 		return NULL;
 	}
 	dst = cvCreateImage(cvSize(src->width, src->height), IPL_DEPTH_8U, 1);
+	NEW_IPLIMAGE
 	if (src->nChannels > 1) {
 		cvCvtColor(src, dst, CV_BGR2GRAY);
 	}
@@ -276,9 +284,12 @@ IplImage* TrContourDraw(IplImage *src, bool &havelarge, double arate, double lra
 		return NULL;
 	}
 	nowstore = cvCreateMemStorage(0);													// release in self function
+	NEW_STORAGE
 	conts = cvCreateSeq(CV_SEQ_ELTYPE_POINT, sizeof(CvSeq), sizeof(CvPoint), nowstore);	// release in self function
 	proc = cvCloneImage(src);
+	NEW_IPLIMAGE
 	dst = cvCreateImage(cvSize(src->width, src->height), IPL_DEPTH_8U, 1);
+	NEW_IPLIMAGE
 	cvZero(dst);
 
 	cvFindContours(proc, nowstore, &conts, sizeof(CvContour),
@@ -304,7 +315,9 @@ IplImage* TrContourDraw(IplImage *src, bool &havelarge, double arate, double lra
 		}
 	}
 	cvReleaseMemStorage(&nowstore);
+	DEL_STORAGE
 	cvReleaseImage(&proc);
+	DEL_IPLIMAGE
 	return dst;
 }
 CvSeq* TrCreateHoughLines(IplImage *src, CvMemStorage *storage, double thresholdrate, double lengthrate, double seprationrate) {
@@ -491,8 +504,10 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 	int i;
 
 	storage = cvCreateMemStorage(0);
+	NEW_STORAGE
 
 	doingimg = cvCloneImage(img);
+	NEW_IPLIMAGE
 	while (!havelarge && loop) {
 		olddoingimg = doingimg;
 		thresimg = TrImageThreshold(doingimg, 0, 0);
@@ -503,7 +518,9 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 		}
 		else {
 			cvReleaseImage(&olddoingimg);
+			DEL_IPLIMAGE
 			cvReleaseImage(&thresimg);
+			DEL_IPLIMAGE
 		}
 	}
 	if (!havelarge) {
@@ -550,9 +567,13 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 // 		cvRelease((void**)lines);
 	}
 	cvReleaseMemStorage(&storage);
+	DEL_STORAGE
 	cvReleaseImage(&contimg);
+	DEL_IPLIMAGE
 	cvReleaseImage(&thresimg);
+	DEL_IPLIMAGE
 	cvReleaseImage(&olddoingimg);
+	DEL_IPLIMAGE
 	return result;
 }
 
@@ -562,6 +583,7 @@ CvMemStorage* GetGlobalStorage(void) {
 	static CvMemStorage *GlobalStorage = NULL;
 	if (!GlobalStorage) {
 		GlobalStorage = cvCreateMemStorage(0);
+		NEW_STORAGE
 	}
 	return GlobalStorage;
 }
@@ -572,6 +594,7 @@ void ComReleaseCharFound(CvSeq *foundlist) {
 		found = (CharFound*)cvGetSeqElem(foundlist, i);
 		if (found->desc) {
 			delete[] found->desc;
+			DEL_STRING
 		}
 	}
 	cvRelease((void**)&foundlist);
@@ -607,6 +630,7 @@ static void Assign(char *&d, char *c, TrEncodeMode encode) {
 	else {
 		size = strlen(c);
 		d = new char[strlen(c) + 16];
+		NEW_STRING
 		strncpy(d, c, size);
 	}
 }
@@ -632,6 +656,7 @@ static void AssignRemoveCR(int &i, char *c, TrEncodeMode encode) {
 	}
 	if (encode == ENCODE_GBK) {
 		delete[] utf8;
+		DEL_STRING
 	}
 }
 bool ComIsWordBox(Box *box, Pix *pix, int largerate, int smallrate) {
@@ -668,6 +693,7 @@ void ComCenterPoint(CvPoint2D32f *corner, CvPoint2D32f *dstcornet) {
 }
 IplImage* TrWarpPerspective(IplImage *img, int w, int h, CvMat *warp, CvMat *warp2) {
 	IplImage *dst = cvCreateImage(cvSize(w, h), img->depth, img->nChannels);
+	NEW_IPLIMAGE
 	cvZero(dst);
 	CvMat *totalwarp;
 
@@ -687,10 +713,9 @@ IplImage* TrWarpPerspective(IplImage *img, int w, int h, CvMat *warp, CvMat *war
 			cvWarpPerspective(img, dst, warp);
 		}
 		else {
-			dst = cvCloneImage(img);
+			cvCopy(img, dst);
 		}
 	}
-
 	return dst;
 }
 Pix* TrPixCreateFromIplImage(IplImage *img) {
@@ -705,6 +730,7 @@ Pix* TrPixCreateFromIplImage(IplImage *img) {
 		return NULL;
 	}
 	pix = pixCreateNoInit(img->width, img->height, img->nChannels == 1 ? 8 : 32);
+	NEW_PIXIMAGE
 	if (!pix) {
 		return NULL;
 	}
@@ -742,6 +768,7 @@ Pix* TrPixCreateFromIplImage(IplImage *img) {
 }
 tesseract::TessBaseAPI* TechOcrInitTessAPI() {
 	tesseract::TessBaseAPI *api = new tesseract::TessBaseAPI;
+	NEW_API
 	int rc = api->Init(NULL, DEFAULT_LANGURE, tesseract::OEM_DEFAULT);
 	if (rc)
 		return NULL;
@@ -752,6 +779,7 @@ void TechOcrExitTessAPI(tesseract::TessBaseAPI *api) {
 	api->End();
 	api->ClearPersistentCache();
 	delete api;
+	DEL_API
 }
 Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
 	Pixa *pixa;
@@ -763,11 +791,14 @@ Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
 // 	api->SetImage(pix);
 // 	boxa = api->GetConnectedComponents(&pixa);
 	boxa = api->GetWords(&pixa);
+	NEW_PIXA
+	NEW_BOXA
 	if (!boxa || !boxa->box) {
 		return NULL;
 	}
 
 	boxc = boxaCreate(boxa->n);
+	NEW_BOXA
 	box = boxa->box;
 	for (i = 0; i < boxa->n; i++) {
 		// detect size
@@ -777,9 +808,11 @@ Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
 		box++;
 	}
 	boxaDestroy(&boxa);
+	DEL_BOXA
 // 	return boxc;
 
 	boxr = boxaCreate(boxc->n);
+	NEW_BOXA
 	box = boxc->box;
 	for (i = 0; i < boxc->n; i++) {
 		if (ComIsBoxIsolated(*box, boxc, size / 300)) {
@@ -788,6 +821,9 @@ Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
 		box++;
 	}
 	boxaDestroy(&boxc);
+	DEL_BOXA
+	pixaDestroy(&pixa);
+	DEL_PIXA
 	return boxr;
 }
 char* TrTranslateInRect(tesseract::TessBaseAPI *api, tesseract::PageSegMode mode, TrEncodeMode encode, Box *box) {
@@ -803,6 +839,7 @@ char* TrTranslateInRect(tesseract::TessBaseAPI *api, tesseract::PageSegMode mode
 		utfstr = api->GetUTF8Text();
 		ComUtf8ToGbk(utfstr, (long)strlen(utfstr), str, gsize);
 		delete[] utfstr;
+		DEL_STRING
 	}
 	else if (encode == ENCODE_UTF8) {
 		str = api->GetUTF8Text();
@@ -816,15 +853,11 @@ char* TrTranslateInRect(tesseract::TessBaseAPI *api, tesseract::PageSegMode mode
 RESULT TechOcrCreatePix(IplImage *img, int w, int h, CvPoint2D32f *corner, Pix *&pix, CvMat *warp) {
 	IplImage *dst;
 	CvPoint2D32f dstcornet[4];
-// 	CvMat *warp;
 
 	if (corner) {
-// 		warp = cvCreateMat(3, 3, CV_32FC1);
-
 		ComCenterPoint(corner, dstcornet);
 		cvGetPerspectiveTransform(corner, dstcornet, warp);
 		dst = TrWarpPerspective(img, w, h, warp);
-// 		cvReleaseMat(&warp);
 	}
 	else {
 		dst = img;
@@ -832,6 +865,7 @@ RESULT TechOcrCreatePix(IplImage *img, int w, int h, CvPoint2D32f *corner, Pix *
 	pix = TrPixCreateFromIplImage(dst);
 	if (corner) {
 		cvReleaseImage(&dst);
+		DEL_IPLIMAGE
 	}
 	return RESULT_OK;
 }
@@ -1174,7 +1208,7 @@ RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvS
 	int w, h;
 	IplImage *rotated;
 	Pix *pix;
-	tesseract::TessBaseAPI* api;
+	tesseract::TessBaseAPI *api;
 	Boxa *boxa;
 	Pixa *pixa;
 	Box **box;
@@ -1255,7 +1289,7 @@ RESULT TechOcrOutput(CvSeq *content, CvSeq *bestformat,  std::string &output) {
 
 RESULT TechOcrProcessPage(IplImage *img, std::string &output) {
 	Pix *pix;
-	tesseract::TessBaseAPI* api;
+	tesseract::TessBaseAPI *api;
 	char *outputchar;
 
 	api = TechOcrInitTessAPI();
@@ -1289,7 +1323,7 @@ char* TechOcr(char *format, char *filename) {
 	CvPoint2D32f *pcorner = corner;
 	IplImage *src, *dst;
 	Pix *pix;
-	tesseract::TessBaseAPI* api;
+	tesseract::TessBaseAPI *api;
 	CvSeq *feature, *content, *bestformat;
 	int match, rotateloop = 0;
 	CvMemStorage *storage;

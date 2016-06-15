@@ -57,7 +57,10 @@
 #define DEFAULT_WIDTH			3
 #define THICK_WIDTH				15
 
-#define TECHOCR_VERSION       "TechOcr V0.2"			// finish in Jun 11 '16
+//#define TECHOCR_VERSION       "TechOcr V0.1"			// finish in Jun 11 '16
+//#define TECHOCR_VERSION       "TechOcr V0.2"			// finish in Jun 15 '16
+#define TECHOCR_VERSION       "TechOcr V0.3"			// finish in Jun 11 '16
+
 
 // 返回点到直线的距离。x、y确定点。x1、y1，x2、y2确定直线。
 // 算法取自 http://blog.csdn.net/hhhh63/article/details/25030143。

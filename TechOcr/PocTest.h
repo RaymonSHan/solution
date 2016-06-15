@@ -16,6 +16,8 @@ void pocCreateBusinessLicense(void);
 // void pocSystemExit(void);
 
 void pocMemoryLeak(char *filename);
+void pocTesseractInit(void);		// OK !! SetPageSegMode !!
+void pocMemoryDebug(void);
 
 
 void pocShowImage(char *src);

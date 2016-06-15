@@ -281,7 +281,7 @@ void pcoPreprocess(char *filename) {
 	CvPoint2D32f *pcorner = corner;
 	IplImage *src, *dst;
 	Pix *pix;
-	tesseract::TessBaseAPI* api;
+	tesseract::TessBaseAPI *api;
 	CvSeq *feature, *content, *bestformat = NULL;
 // 	CvPoint2D32f csrc[4], cdst[4];
 // 	int mostfea, mostfor;
@@ -386,7 +386,7 @@ void pocOnceMemoryLeak(char *filename) {
 	CvPoint2D32f corner[4];
 	IplImage *src, *dst, *doingimg;
 	Pix *pix;
-	tesseract::TessBaseAPI* api;
+	tesseract::TessBaseAPI *api;
 	// 	CvSeq *feature, *content, *bestformat = NULL;
 	CvSeq *lines, *linesappr, *conners;
 	CvMemStorage *storage;
@@ -569,110 +569,50 @@ void pocCreateBusinessLicense(void) {
 	return;
 }
 
-// void pocSystemExit() {
-// // 	CvMemStorage *storage;
-// // 	storage = GetGlobalStorage();
-// // 	if (storage) {
-// // 		cvReleaseMemStorage(&storage);
-// // 	}
-// }
+void pocTesseractInit(void) {
+	char *utfstr, *gbstr;
+	long gsize;
+	tesseract::TessBaseAPI *api = new tesseract::TessBaseAPI;
+	int rc = api->Init(NULL, DEFAULT_LANGURE, tesseract::OEM_DEFAULT);
+	Pix *imagec = pixRead("z:\\solution\\files\\cl.jpg");
+	Pix *imageb = pixRead("z:\\solution\\files\\bs.jpg");
+	Pixa *pixc, *pixb;
+	Boxa *boxc, *boxb;
 
-void pocShowImage(char *src) {
-	IplImage *img, *img1c;//, *imgerode;
-//	CvMemStorage* storage;
-	CvSeq *lines;
+	api->SetImage(imagec);
+	api->SetPageSegMode(tesseract::PSM_SINGLE_BLOCK);			// the IMPORTANT is THIS
+	boxc = api->GetWords(&pixc);
+	api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
+	api->SetRectangle(610, 2210, 430, 70);			// for cl.jpg
+	api->Recognize(NULL);
+	utfstr = api->GetUTF8Text();
+	ComUtf8ToGbk(utfstr, (long)strlen(utfstr), gbstr, gsize);
+	std::cout << gbstr;
+	delete[] gbstr;
+	delete[] utfstr;
+	api->Clear();
 
-	Pix *pix;
-	tesseract::TessBaseAPI *api;
-	Pixa *pixa;
-	Boxa *boxa;
-
-	img = cvLoadImage(src, 1);
-	if (!img) {
-		return;
-	}
-
-// 	CvSize	resize;
-// 	int lmax = MAX(img->width, img->height);
-// 	double scale = lmax / 600;
-// 	resize.width = (int)(img->width / scale);
-// 	resize.height = (int)(img->height / scale);
-// 
-// 	IplImage *dst;
-// 	dst = cvCreateImage(resize, img->depth, img->nChannels);
-// 	cvResize(img, dst, CV_INTER_LINEAR);
-
-//	imgerode = cvCreateImage(cvSize(img->width, img->height), img->depth, img->nChannels);
-// 	storage = cvCreateMemStorage(0);
-// 	lines = trCreateHoughLines(img1c, storage);
-	// lines will be free by cvReleaseMemStorage(&storage);
+	api->SetImage(imageb);
+	api->SetPageSegMode(tesseract::PSM_SINGLE_BLOCK);			// the IMPORTANT is THIS
+	// 	api->SetRectangle(0, 0, imageb->w, imageb->h);			// for bs.jpg
+	boxb = api->GetWords(&pixb);
+	api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
+	api->SetRectangle(250, 315, 555, 120);			// for bs.jpg
+	api->Recognize(NULL);
+	utfstr = api->GetUTF8Text();
+	ComUtf8ToGbk(utfstr, (long)strlen(utfstr), gbstr, gsize);
+	std::cout << gbstr;
+	delete[] gbstr;
+	delete[] utfstr;
 
 
-// 	IplConvKernel *ck = cvCreateStructuringElementEx(13, 1, 0, 0, CV_SHAPE_CROSS);
-// 	cvErode(img, img, ck, 1);		// enlarge
-// 	cvDilate(img, img, ck, 1);
-// 	cvReleaseStructuringElement(&ck);
+	api->Clear();
+	api->End();
+	api->ClearPersistentCache();
+	delete api;
 
-//  	cvDilate(img, img, NULL, 5);
-// 	cvErode(img, img, NULL, 5);
-
-	img1c = TrImageThreshold(img);
-
-	pix = TrPixCreateFromIplImage(img1c);
-	api = TechOcrInitTessAPI();
-	api->SetImage(pix);
-// 	boxa = api->GetConnectedComponents(&pixa);
-	boxa = api->GetWords(&pixa);
-
-
-// 	trDrawLines(img, lines, true);
-	ComDrawBoxs(img, boxa);
-	ComShowImage("src", img);
-	ComShowImage("1c", img1c);
-	cvWaitKey(0);
-
-	TechOcrExitTessAPI(api);
-	pixDestroy(&pix);
-
-// 	cvReleaseMemStorage(&storage);
-	cvReleaseImage(&img1c);
-//	cvReleaseImage(&imgerode);
-
-
-	cvReleaseImage(&img);
 }
 
-void pocPointToLineDist(void) {
-	double aa = ComPointToLineDist(0, 0, 0, 1, 1, 0);
-	return;
-}
+void pocMemoryDebug(void) {
 
-void pocIsIntersect(void) {
-	CvPoint a1, a2, b1, b2;
-	CvPoint2D32f c1;
-	a1 = cvPoint(1, 1);
-	a2 = cvPoint(2, 2);
-	b1 = cvPoint(0, 5);
-	b2 = cvPoint(4, 1);
-	bool result = ComIsLineIntersect(&a1, &a2, &b1, &b2, c1);
-	return;
-}
-
-// http://www.linuxidc.com/Linux/2015-01/111962.htm
-// this is what I need
-// should read http://blog.csdn.net/qq61394323/article/details/10018967
-// http://blog.csdn.net/wangyaninglm/article/details/41863867
-void pocNewContour(char *src) {
-	IplImage *img, *mimg;
-
-	img = cvLoadImage(src, 1);
-	if (!img) {
-		return;
-	}
-	mimg = cvCloneImage(img);
-
-	cvPyrMeanShiftFiltering(img, mimg, 3, 15);
-	ComShowImage("src", img);
-	ComShowImage("mean", mimg);
-	cvWaitKey(0);
 }
