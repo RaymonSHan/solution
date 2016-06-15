@@ -15,6 +15,7 @@ void pcoPreprocess(char *filename);
 void pocCreateBusinessLicense(void);
 // void pocSystemExit(void);
 
+void pocMemoryLeak(char *filename);
 
 
 void pocShowImage(char *src);

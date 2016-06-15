@@ -398,7 +398,7 @@ static void pushMaxLine(CvSeq *line, CvSeq *output) {
 	int i, j;
 	float *l1, *l2;
 	double dist, maxdist = 0;
-	int maxi, maxj;
+	int maxi = 0, maxj = 0;
 
 	for (i = 0; i < line->total; i++) {
 		l1 = (float*)cvGetSeqElem(line, i);
@@ -430,6 +430,9 @@ CvSeq* TrChoiceLinesInFitLines(CvSeq *lines, CvMemStorage *storage) {
 		line = (float*)cvGetSeqElem(lines, i);
 		if (abs(*line) > abs(*(line + 1))) cvSeqPush(hlines, line);
 		else cvSeqPush(vlines, line);
+	}
+	if (hlines->total < 2 || vlines->total < 2) {
+		return NULL;
 	}
 	pushMaxLine(hlines, output);
 	pushMaxLine(vlines, output);
@@ -523,17 +526,23 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 	{
 		if (linesappr->total != 4) {
 			linesappr = TrChoiceLinesInFitLines(linesappr, storage);
-			
-			result = RESULT_MAYBE;
+			if (!linesappr) {
+				result = RESULT_ERR;
+			}
+			else {
+				result = RESULT_MAYBE;
+			}
 		}
-		conners = TrGetFourCorner(linesappr, storage, &cvPoint2D32f(img->width / 2, img->height / 2));
-		if (!conners || conners->total != 4) {
-			result = RESULT_ERR;
-		}
-		else {
-			for (i = 0; i < 4; i++) {
-				*corner = *(CvPoint2D32f*)cvGetSeqElem(conners, i);
-				corner++;
+		if (result != RESULT_ERR) {
+			conners = TrGetFourCorner(linesappr, storage, &cvPoint2D32f(img->width / 2, img->height / 2));
+			if (!conners || conners->total != 4) {
+				result = RESULT_ERR;
+			}
+			else {
+				for (i = 0; i < 4; i++) {
+					*corner = *(CvPoint2D32f*)cvGetSeqElem(conners, i);
+					corner++;
+				}
 			}
 		}
 // 		cvRelease((void**)linesappr);
@@ -567,12 +576,11 @@ void ComReleaseCharFound(CvSeq *foundlist) {
 	}
 	cvRelease((void**)&foundlist);
 }
-
 static CvSeq* GetFormatStart(void) {
-	static CvSeq FormatStart;
+	static CvSeq FormatStart;			// this is head, not store infomation
 	static bool first = true;
-	if (!first) {
-		cvZero(&FormatStart);
+	if (first) {
+		FormatStart.h_next = NULL;
 		first = false;
 	}
 	return &FormatStart;
@@ -590,7 +598,7 @@ static void Assign(CvRect &rect, int x, int y, int w, int h) {
 	rect.height = h;
 }
 static void Assign(char *&d, char *c, TrEncodeMode encode) {
-	char *utf8;
+	char *utf8 = NULL;
 	long size;
 	if (encode == ENCODE_GBK) {
 		ComGbkToUtf8(c, strlen(c), utf8, size);
@@ -603,7 +611,7 @@ static void Assign(char *&d, char *c, TrEncodeMode encode) {
 	}
 }
 static void AssignRemoveCR(int &i, char *c, TrEncodeMode encode) {
-	char *utf8;
+	char *utf8 = NULL;
 	long usize;
 	unsigned char *uc;
 	int l;
@@ -664,13 +672,23 @@ IplImage* TrWarpPerspective(IplImage *img, int w, int h, CvMat *warp, CvMat *war
 	CvMat *totalwarp;
 
 	if (warp2 != NULL) {
-		CvMat *totalwarp = cvCreateMat(3, 3, CV_32FC1);
-		cvMatMul(warp2, warp, totalwarp);			// the order is important
-		cvWarpPerspective(img, dst, totalwarp);
-		cvReleaseMat(&totalwarp);
+		if (warp != NULL) {
+			CvMat *totalwarp = cvCreateMat(3, 3, CV_32FC1);
+			cvMatMul(warp2, warp, totalwarp);			// the order is important
+			cvWarpPerspective(img, dst, totalwarp);
+			cvReleaseMat(&totalwarp);
+		}
+		else {
+			cvWarpPerspective(img, dst, warp2);
+		}
 	}
 	else {
-		cvWarpPerspective(img, dst, warp);
+		if (warp != NULL) {
+			cvWarpPerspective(img, dst, warp);
+		}
+		else {
+			dst = cvCloneImage(img);
+		}
 	}
 
 	return dst;
@@ -730,7 +748,9 @@ tesseract::TessBaseAPI* TechOcrInitTessAPI() {
 	return api;
 }
 void TechOcrExitTessAPI(tesseract::TessBaseAPI *api) {
+	api->Clear();
 	api->End();
+	api->ClearPersistentCache();
 	delete api;
 }
 Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
@@ -822,7 +842,6 @@ RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api, CvSeq *featu
 	char *str;
 	int i;
 	CharFound found;
-// 	CvMemStorage *storage;
 
 	api->SetImage(pix);
 
@@ -840,6 +859,20 @@ RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api, CvSeq *featu
 	}
 	boxaDestroy(&boxa);
 	return RESULT_OK;
+}
+CvSeq* TrGetFormatByName(char* name) {
+	CvSeq *last;
+	int i;
+	CharFound *found;
+	last = GetFormatStart()->h_next;
+	while (last) {
+		found = (CharFound*)cvGetSeqElem(last, 0);
+		if (!strcmp(name, found->desc)) {
+			return last;
+		}
+		last = last->h_next;
+	}
+	return NULL;
 }
 RESULT TechOcrCreateFormat(CvSeq *&format, char *name, int w, int h, TrEncodeMode encode) {
 	static volatile MYINT nowid = 0;
@@ -1151,6 +1184,11 @@ RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvS
 
 	TrGetFormatScreenRect(bestformat, w, h);
 	rotated = TrWarpPerspective(img, w, h, warp1, warp2);
+
+// 	ComShowImage("img", img);
+// 	ComShowImage("ro", rotated);
+// 	cvWaitKey(0);
+
 	pix = TrPixCreateFromIplImage(rotated);
 	api = TechOcrInitTessAPI();
 	api->SetImage(pix);
@@ -1184,16 +1222,18 @@ RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvS
 	TechOcrExitTessAPI(api);
 	return RESULT_OK;
 }
-RESULT TechOcrOutput(CvSeq *content, CvSeq *bestformat, char *&output) {
+RESULT TechOcrOutput(CvSeq *content, CvSeq *bestformat,  std::string &output) {
 	CharFound* found, *featurematch;
-	std::string outstring;
 	bool first = true;
 	char * ch, *gb;
-	int i, strlength;
+	int i;
 
-	outstring = "{\"version\":\"";
-	outstring += TECHOCR_VERSION;
-	outstring += "\", \"result\":[";
+	output = "{\"version\":\"";
+	output += TECHOCR_VERSION;
+	output += "\", \"format\":\"";
+	featurematch = (CharFound*)cvGetSeqElem(bestformat, 0);
+	output += featurematch->desc;
+	output += "\", \"result\":[";
 	for (i = 0; i < content->total; i++) {
 		found = (CharFound*)cvGetSeqElem(content, i);
 		featurematch = (CharFound*)cvGetSeqElem(bestformat, found->found);
@@ -1201,20 +1241,165 @@ RESULT TechOcrOutput(CvSeq *content, CvSeq *bestformat, char *&output) {
 			first = false;
 		}
 		else {
-			outstring += ",";
+			output += ",";
 		}
-		outstring += "{\"name\":\"";
-		ComAddToJson(outstring, (char*)featurematch->desc);
-		outstring += "\",\"value\":\"";
-		ComAddToJson(outstring, (char*)found->desc);
-		outstring += "\"}";
-		delete[] featurematch->desc;
-		delete[] found->desc;
+		output += "{\"name\":\"";
+		ComAddToJson(output, (char*)featurematch->desc);
+		output += "\",\"value\":\"";
+		ComAddToJson(output, (char*)found->desc);
+		output += "\"}";
 	}
-	outstring += "]}";
-	strlength = outstring.length();
-	output = new char[strlength + 10];
-	strncpy(output, outstring.c_str(), strlength);
-	output[strlength] = 0;
+	output += "]}";
 	return RESULT_OK;
 }
+
+RESULT TechOcrProcessPage(IplImage *img, std::string &output) {
+	Pix *pix;
+	tesseract::TessBaseAPI* api;
+	char *outputchar;
+
+	api = TechOcrInitTessAPI();
+	pix = TrPixCreateFromIplImage(img);
+	api->SetImage(pix);
+
+	outputchar = api->GetUTF8Text();
+
+	output = "{\"version\":\"";
+	output += TECHOCR_VERSION;
+	output += "\", \"result\":[";
+
+	output += "{\"name\":\"";
+	output += "unknown";
+	output += "\",\"value\":\"";
+	ComAddToJson(output, outputchar);
+	output += "\"}";
+	output += "]}";
+
+	delete[] outputchar;
+	pixDestroy(&pix);
+	TechOcrExitTessAPI(api);
+
+	return RESULT_OK;
+}
+
+char* TechOcr(char *format, char *filename) {
+	char *output;
+	RESULT result;
+	CvPoint2D32f corner[4];
+	CvPoint2D32f *pcorner = corner;
+	IplImage *src, *dst;
+	Pix *pix;
+	tesseract::TessBaseAPI* api;
+	CvSeq *feature, *content, *bestformat;
+	int match, rotateloop = 0;
+	CvMemStorage *storage;
+	CvMat *warp1, *warp2;
+	int i;
+
+	src = cvLoadImage(filename, 1);
+	if (!src)
+		return NULL;
+	storage = cvCreateMemStorage(0);
+	bestformat = TrGetFormatByName(format);
+
+	float initmat[3 * 3] = { 1, 0, 0, 0, 1, 0, 0, 0, 1 };
+//	warp1 = cvCreateMat(3, 3, CV_32FC1, initmat);
+//	warp2 = cvCreateMat(3, 3, CV_32FC1, initmat);
+	warp1 = cvCreateMat(3, 3, CV_32FC1);
+	warp2 = cvCreateMat(3, 3, CV_32FC1);
+	CvMat *pwarp1;
+
+// 	warp1 = cvCreateMat(3, 3, CV_32FC1, initmat);
+// 	warp2 = cvCreateMat(3, 3, CV_32FC1, initmat);
+	dst = cvCloneImage(src);
+	for (;;) {
+		api = TechOcrInitTessAPI();
+		result = TechOcrGetFourCorner(dst, corner, 1);
+		if (result == RESULT_ERR) {
+			pcorner = NULL;
+			pwarp1 = NULL;
+		}
+		else {
+			pcorner = corner;
+			pwarp1 = warp1;
+		}
+		TechOcrCreatePix(dst, dst->width, dst->height, pcorner, pix, warp1);
+
+		feature = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
+		result = TechOcrGetFeatureChar(pix, api, feature);
+		TechOcrFormatMostMatch(feature, bestformat, match, warp2);
+
+		if ((bestformat && match > MIN_CONFIRM) || rotateloop >= 4) {
+			// record now bestformat
+			break;
+		}
+		cvReleaseImage(&dst);
+		pixDestroy(&pix);
+		cvRelease((void**)&feature);
+		TechOcrExitTessAPI(api);
+		rotateloop++;
+		dst = ComRotateImage(src, 90 * rotateloop, false);
+	}
+
+	pixDestroy(&pix);
+	TechOcrExitTessAPI(api);
+	ComReleaseCharFound(feature);
+
+	std::string outstr;
+	CharFound* found, *featurematch;
+	if (bestformat && match > MIN_CONFIRM) {
+		content = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
+		TechOcrDetectWordsInFormat(dst, pwarp1, warp2, bestformat, content);
+//		TechOcrDetectWordsInFormat(dst, warp1, warp2, bestformat, content);
+		TechOcrOutput(content, bestformat, outstr);
+
+		ComReleaseCharFound(content);
+	}
+	else {
+		TechOcrProcessPage(dst, outstr);
+	}
+	cvWaitKey(0);
+
+	int strlength = outstr.length();
+	output = new char[strlength + 10];
+	strncpy(output, outstr.c_str(), strlength);
+	output[strlength] = 0;
+
+	cvReleaseMat(&warp1);
+	cvReleaseMat(&warp2);
+	cvReleaseMemStorage(&storage);
+
+	cvReleaseImage(&dst);
+	cvReleaseImage(&src);
+	return output;
+}
+
+RESULT TechOcrCreateFormat(char *formatname, char *name, int w, int h, TrEncodeMode encode) {
+	CvSeq *format;
+	format = TrGetFormatByName(formatname);
+	if (format)
+		return RESULT_ERR;
+	else
+		return TechOcrCreateFormat(format, name, w, h, encode);
+}
+
+RESULT TechOcrFormatAddFeature(char *formatname, int x, int y, int w, int h, char *c, TrEncodeMode encode) {
+	CvSeq *format;
+
+	format = TrGetFormatByName(formatname);
+	if (format)
+		return TechOcrFormatAddFeature(format, x, y, w, h, c, encode);
+	else
+		return RESULT_ERR;
+}
+RESULT TechOcrFormatAddContent(char *formatname, int x, int y, int w, int h, char *c, int mode, TrEncodeMode encode) {
+	CvSeq *format;
+
+	format = TrGetFormatByName(formatname);
+	if (format)
+		return TechOcrFormatAddContent(format, x, y, w, h, c, encode);
+	else
+		return RESULT_ERR;
+}
+
+

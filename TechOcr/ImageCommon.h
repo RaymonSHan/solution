@@ -6,6 +6,8 @@
 #include <windows.h>
 #include <iostream>
 
+#include "jni.h"
+
 // for opencv
 #include <stdio.h>
 #include "cv.h"
@@ -23,6 +25,26 @@
 
 #include "rcommon.h"
 // #include "ProcessFormat.h"
+
+#pragma comment(lib, "zlib.lib")
+#pragma comment(lib, "libpng.lib")
+#pragma comment(lib, "giflib.lib")
+#pragma comment(lib, "libjpeg.lib")
+#pragma comment(lib, "openjpeg.lib")
+#pragma comment(lib, "libtiff.lib")
+#pragma comment(lib, "liblept.lib")
+#pragma comment(lib, "libpng.lib")
+#pragma comment(lib, "libtesseract.lib")
+
+#ifdef _DEBUG
+#pragma comment(lib, "opencv_core2411d.lib")
+#pragma comment(lib, "opencv_imgproc2411d.lib")
+#pragma comment(lib, "opencv_highgui2411d.lib")
+#else _DEBUG
+#pragma comment(lib, "opencv_core2411.lib")
+#pragma comment(lib, "opencv_imgproc2411.lib")
+#pragma comment(lib, "opencv_highgui2411.lib")
+#endif
 
 #define DEFAULT_LANGURE			"chi_sim"
 #define DEFALUT_COLOR			CV_RGB(221, 134, 212)
@@ -218,6 +240,8 @@ RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api,	CvSeq *featu
 
 // 第二步主要工作，定义模板
 //
+// 根据名称，获取模板
+CvSeq* TrGetFormatByName(char* name);
 // 定义模板，创建模板
 RESULT TechOcrCreateFormat(CvSeq *&format, char *name, int w, int h, TrEncodeMode encode = ENCODE_GBK);
 // 定义模板，添加特征字
@@ -256,11 +280,27 @@ CvRect ComDetectWord(Pixa *pixa, CvRect *rect);
 RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvSeq *bestformat, CvSeq *content);
 
 // 第三步最后工作，输出字符串
-RESULT TechOcrOutput(CvSeq *content, CvSeq *bestformat, char *&output);
+RESULT TechOcrOutput(CvSeq *content, CvSeq *bestformat, std::string &output);
+
+// 在未能识别出版式时,识别页面上所有字符
+RESULT TechOcrProcessPage(IplImage *img, std::string &output);
 
 
+// 以下为DLL输出函数，供外部调用。
+//
+// 主函数，识别特定文件，返回格式化字符。
+extern "C" {
+	// for C user, MUST delete[] the return;
 
+	char* TechOcr(char *filename, char *output);
+	RESULT TechOcrCreateFormat(char *formatname, char *name, int w, int h, TrEncodeMode encode);
+	RESULT TechOcrFormatAddFeature(char *formatname, int x, int y, int w, int h, char *c, TrEncodeMode encode);
+	RESULT TechOcrFormatAddContent(char *formatname, int x, int y, int w, int h, char *c, int mode, TrEncodeMode encode);
 
+	JNIEXPORT jstring JNICALL Java_net_gbicc_xbrl_otc_util_ImageScanForC_TechOcr
+	(JNIEnv *, jclass, jstring, jstring);
+
+}
 
 
 

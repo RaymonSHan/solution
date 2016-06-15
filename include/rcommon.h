@@ -27,6 +27,7 @@
 #define     RESULT_NOT_SUPPORT      4
 #define     RESULT_NOT_EQUAL        5
 
+#define		RESULT_MAYBE			10
 #define     RESULT_ERR              11
 #define     RESULT_BUSY             12
 

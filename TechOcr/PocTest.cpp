@@ -43,7 +43,7 @@ void pocFindMaxRect(char *src) {
 	img = cvLoadImage(src, 0);     // 0 for is gray
 // 	dst = TrCreateMaxContour(img);
 	ComShowImage("src", img);
-	ComShowImage("dst", dst);
+// 	ComShowImage("dst", dst);
 	cvWaitKey(0);
 	cvReleaseImage(&dst);
 	cvReleaseImage(&img);
@@ -65,21 +65,21 @@ void pocFindHoughLines(char *src) {
 
 	int size = MAX(img->width, img->height);
 
-	lines = cvHoughLines2(dst, storage, CV_HOUGH_PROBABILISTIC,
-		size / 1000, CV_PI / 180,
-		(double)size / 8, (double)size / 6, (double)size / 40);
- 	ComDrawLines(img, lines, true);
+// 	lines = cvHoughLines2(dst, storage, CV_HOUGH_PROBABILISTIC,
+// 		size / 1000, CV_PI / 180,
+// 		(double)size / 8, (double)size / 6, (double)size / 40);
+//  	ComDrawLines(img, lines, true);
 // 	dst2 = TrCreateLine(dst/* only for size**/, lines);
 
 
 	ComShowImage("src", img);
 	ComShowImage("mimg", mimg);
-	ComShowImage("dst", dst);
-	ComShowImage("dst2", dst2);
+// 	ComShowImage("dst", dst);
+// 	ComShowImage("dst2", dst2);
 
 	cvWaitKey(0);
-	cvReleaseImage(&dst);
-	cvReleaseImage(&dst2);
+// 	cvReleaseImage(&dst);
+// 	cvReleaseImage(&dst2);
 	cvReleaseImage(&mimg);
 	cvReleaseImage(&img);
 	cvReleaseMemStorage(&storage);
@@ -287,15 +287,16 @@ void pcoPreprocess(char *filename) {
 // 	int mostfea, mostfor;
 	int match, rotateloop = 0;
 	CvMemStorage *storage;
+	CvMat *warp1, *warp2;
 	int i;
-	storage = cvCreateMemStorage(0);
-
-	CvMat *warp1 = cvCreateMat(3, 3, CV_32FC1);
-	CvMat *warp2 = cvCreateMat(3, 3, CV_32FC1);
 
 	src = cvLoadImage(filename, 1);
 	if (!src)
 		return;
+	storage = cvCreateMemStorage(0);
+
+	warp1 = cvCreateMat(3, 3, CV_32FC1);
+	warp2 = cvCreateMat(3, 3, CV_32FC1);
 	dst = cvCloneImage(src);
 	for (;;) {
 		api = TechOcrInitTessAPI();
@@ -317,6 +318,7 @@ void pcoPreprocess(char *filename) {
 			break;
 		}
 		cvReleaseImage(&dst);
+		pixDestroy(&pix);
 		cvRelease((void**)&feature);
 		TechOcrExitTessAPI(api);
 		rotateloop++;
@@ -347,40 +349,171 @@ void pcoPreprocess(char *filename) {
 	content = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
 	TechOcrDetectWordsInFormat(dst, warp1, warp2, bestformat, content);
 
-	for (i = 0; i < content->total; i++) {
-		found = (CharFound*)cvGetSeqElem(content, i);
-		ch = (char*)found->desc;
-		ComUtf8ToGbk(ch, strlen(ch), gb, gsize);
-		std::cout << found->rect.x << ", " << found->rect.y << ", CHAR " << gb;
-		delete[] gb;
-// 		delete[] ch;
-		featurematch = (CharFound*)cvGetSeqElem(bestformat, found->found);
-		ch = (char*)featurematch->desc;
-		ComUtf8ToGbk(ch, strlen(ch), gb, gsize);
-		std::cout << ", " << gb << std::endl;
-		delete[] gb;
-// 		delete[] ch;
-
-	}
+// 	for (i = 0; i < content->total; i++) {
+// 		found = (CharFound*)cvGetSeqElem(content, i);
+// 		ch = (char*)found->desc;
+// 		ComUtf8ToGbk(ch, strlen(ch), gb, gsize);
+// 		std::cout << found->rect.x << ", " << found->rect.y << ", CHAR " << gb;
+// 		delete[] gb;
+// // 		delete[] ch;
+// 		featurematch = (CharFound*)cvGetSeqElem(bestformat, found->found);
+// 		ch = (char*)featurematch->desc;
+// 		ComUtf8ToGbk(ch, strlen(ch), gb, gsize);
+// 		std::cout << ", " << gb << std::endl;
+// 		delete[] gb;
+// // 		delete[] ch;
+// 
+// 	}
 	std::cout << std::endl << std::endl;
 	ComReleaseCharFound(content);
 
 
 
 
-// 	ComShowImage("d1", d1);
-// 	ComShowImage("d2", d2);
 	cvWaitKey(0);
 
-// 	TechOcrExitTessAPI(api);
 
 	cvReleaseMat(&warp1);
 	cvReleaseMat(&warp2);
 	cvReleaseMemStorage(&storage);
 
-// 	cvReleaseImage(&d2);
 	cvReleaseImage(&dst);
 	cvReleaseImage(&src);
+}
+
+void pocOnceMemoryLeak(char *filename) {
+	RESULT result;
+	CvPoint2D32f corner[4];
+	IplImage *src, *dst, *doingimg;
+	Pix *pix;
+	tesseract::TessBaseAPI* api;
+	// 	CvSeq *feature, *content, *bestformat = NULL;
+	CvSeq *lines, *linesappr, *conners;
+	CvMemStorage *storage;
+	CvMat *warp1, *warp2;
+	bool havelarge = false;
+	int i;
+	int minsize;
+
+	src = cvLoadImage(filename, 1);
+	if (!src)
+		return;
+
+// // 	minsize = MIN(src->width, src->height);
+// // 	storage = cvCreateMemStorage(0);
+// // 
+// // // 	dst = cvCloneImage(src);
+// // // 	dst = ComRotateImage(src, 90, true);
+// // 	dst = TrImageThreshold(src, 5, 5);
+// // 	doingimg = TrContourDraw(dst, havelarge);
+// // 	lines = TrCreateHoughLines(doingimg, storage);
+// // 	linesappr = TrAggregationLines(lines, storage, minsize / 30);
+// // 	linesappr = TrChoiceLinesInFitLines(linesappr, storage);
+// // 	conners = TrGetFourCorner(linesappr, storage, &cvPoint2D32f(src->width / 2, src->height / 2));
+// // 
+// // 
+// // // 	api = TechOcrInitTessAPI();
+// // // 	pix = TrPixCreateFromIplImage(dst);
+// // // 	api->SetImage(pix);
+// // // 
+// // // 
+// // // 	pixDestroy(&pix);
+// // // 	TechOcrExitTessAPI(api);
+// // 
+// // 
+// // 	cvReleaseMemStorage(&storage);
+// // 	cvReleaseImage(&doingimg);
+// // 	cvReleaseImage(&dst);
+// 
+// 	TechOcrGetFourCorner(src, corner, 1);			// may have memory leak 4k for 50 times
+
+
+
+
+// 	// 	// 	api = TechOcrInitTessAPI();
+// 	// 	// 	TechOcrExitTessAPI(api);
+// result for Z:\\solution\\files\\cl.jpg
+	corner[0].x = 59.41;
+	corner[0].y = 127.16;
+	corner[1].x = 3063.12;
+	corner[1].y = 132.59;
+	corner[2].x = 3164.66;
+	corner[2].y = 3970.71;
+	corner[3].x = 48.77;
+	corner[3].y = 3969.04;
+
+	CvSeq *feature;
+	api = TechOcrInitTessAPI();
+	for (int i = 0; i < 1; i++) {
+		storage = cvCreateMemStorage(0);
+	warp1 = cvCreateMat(3, 3, CV_32FC1);
+	warp2 = cvCreateMat(3, 3, CV_32FC1);
+// 		TechOcrCreatePix(src, src->width, src->height, corner, pix, warp1);
+
+		feature = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
+// 		result = TechOcrGetFeatureChar(pix, api, feature);
+
+		ComReleaseCharFound(feature);
+// 		pixDestroy(&pix);
+	cvReleaseMat(&warp1);
+	cvReleaseMat(&warp2);
+		cvReleaseMemStorage(&storage);
+		api->Clear();
+	}
+
+	TechOcrExitTessAPI(api);
+
+// result for Z:\\solution\\files\\bl.jpg
+// 	corner[0].x = 39.30;
+// 	corner[0].y = 216.07;
+// 	corner[1].x = 3049.36;
+// 	corner[1].y = 218.59;
+// 	corner[2].x = 3040.09;
+// 	corner[2].y = 4092.81;
+// 	corner[3].x = 59.38;
+// 	corner[3].y = 4082.74;
+
+	cvReleaseImage(&src);
+
+	i = 1;
+	return;
+}
+
+void pocMemoryLeak(char *filename) {
+	int i;
+	for (i = 0; i < 2; i++) {
+		pocOnceMemoryLeak(filename);
+	}
+	for (i = 0; i < 2; i++) {
+		pocOnceMemoryLeak(filename);
+	}
+
+	for (i = 0; i < 2; i++) {
+		pocOnceMemoryLeak(filename);
+	}
+
+	for (i = 0; i < 2; i++) {
+		pocOnceMemoryLeak(filename);
+	}
+
+	for (i = 0; i < 2; i++) {
+		pocOnceMemoryLeak(filename);
+	}
+	for (i = 0; i < 3; i++) {
+		pocOnceMemoryLeak(filename);
+	}
+	for (i = 0; i < 4; i++) {
+		pocOnceMemoryLeak(filename);
+	}
+	pocOnceMemoryLeak(filename);
+
+	pocOnceMemoryLeak(filename);
+
+	pocOnceMemoryLeak(filename);
+
+	pocOnceMemoryLeak(filename);
+
+	int j = 0;
 }
 
 void pocCreateBusinessLicense(void) {
@@ -430,7 +563,7 @@ void pocCreateBusinessLicense(void) {
 	TechOcrFormatAddContent(format, 1095, 2095, 1700, 66, "注册资本");
 	TechOcrFormatAddContent(format, 1095, 2212, 1700, 66, "成立日期");
 	TechOcrFormatAddContent(format, 1095, 2330, 1700, 66, "营业期限");
-// 	TechOcrFormatAddContent(format, 1095, 2440, 1700, 550, "经营范围", CHARTYPE_CONTENT_BLOCK);
+	TechOcrFormatAddContent(format, 1095, 2440, 1700, 550, "经营范围", CHARTYPE_CONTENT_BLOCK);
 	// make it faster
 
 	return;
