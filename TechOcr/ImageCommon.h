@@ -1,5 +1,11 @@
 #pragma once
 
+#define  OUTPUTBOX(b, s)	{ char *gb; long gsize; ComUtf8ToGbk(s, strlen(s), gb, gsize); \
+std::cout << (b)->x << ", " << (b)->y << ", " << (b)->w << ", " << (b)->h << ", " \
+	<< gb << std::endl; \
+delete[] gb; }
+
+
 #include "targetver.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -59,7 +65,7 @@
 
 //#define TECHOCR_VERSION       "TechOcr V0.1"			// finish in Jun 11 '16
 //#define TECHOCR_VERSION       "TechOcr V0.2"			// finish in Jun 15 '16
-#define TECHOCR_VERSION       "TechOcr V0.3"			// finish in Jun 11 '16
+#define TECHOCR_VERSION       "TechOcr V0.2.1"			// finish in Jun 11 '16
 
 
 // 返回点到直线的距离。x、y确定点。x1、y1，x2、y2确定直线。

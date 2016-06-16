@@ -13,11 +13,13 @@ void pocFindFeatureWordsInClass(char *src);
 void pcoPreprocess(char *filename);
 
 void pocCreateBusinessLicense(void);
+void pocCreatePersonCard(void);
 // void pocSystemExit(void);
 
 void pocMemoryLeak(char *filename);
 void pocTesseractInit(void);		// OK !! SetPageSegMode !!
 void pocMemoryDebug(void);
+void pcoImagePreprocess(char *filename);
 
 
 void pocShowImage(char *src);

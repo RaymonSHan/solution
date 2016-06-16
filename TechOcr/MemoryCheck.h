@@ -36,6 +36,20 @@ void SUB_COUNT_MEMORY(int count);
 
 
 #else  _DEBUG
-#define NEW_MEMORY(type)
-#define DEL_MEMORY(type)
+#define NEW_STRING
+#define DEL_STRING
+#define NEW_IPLIMAGE
+#define DEL_IPLIMAGE
+#define NEW_PIXIMAGE
+#define DEL_PIXIMAGE
+#define NEW_CVSEQ
+#define DEL_CVSEQ
+#define NEW_STORAGE
+#define DEL_STORAGE
+#define NEW_API
+#define DEL_API
+#define NEW_PIXA
+#define DEL_PIXA
+#define NEW_BOXA
+#define DEL_BOXA
 #endif _DEBUG

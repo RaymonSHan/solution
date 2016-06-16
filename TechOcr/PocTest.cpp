@@ -1,7 +1,6 @@
 #include "PocTest.h"
 
-#define  OUTPUTBOX(b, s)	std::cout << (b)->x << ", " << (b)->y << ", " << (b)->w << ", " << (b)->h << ", " \
-	<< s << std::endl;
+
 
 void pocPixCreateFromIplImage(char *src, char *dst) {
 	IplImage *img = cvLoadImage(src, 1);     // 1 for is colored
@@ -274,7 +273,6 @@ void pocApproximateLine(char *filename) {
 
 
 #define MIN_CONFIRM				6
-CvSeq *format;
 void pcoPreprocess(char *filename) {
 	RESULT result;
 	CvPoint2D32f corner[4];
@@ -313,7 +311,7 @@ void pcoPreprocess(char *filename) {
 		result = TechOcrGetFeatureChar(pix, api, feature);
 		TechOcrFormatMostMatch(feature, bestformat, match, warp2);
 
-		if ((bestformat && match > MIN_CONFIRM) || rotateloop >= 4) {
+		if ((bestformat && match >= MIN_CONFIRM) || rotateloop >= 4) {
 			// record now bestformat
 			break;
 		}
@@ -517,6 +515,7 @@ void pocMemoryLeak(char *filename) {
 }
 
 void pocCreateBusinessLicense(void) {
+	CvSeq *format;
 	static bool havedone = false;
 	if (havedone)
 		return;
@@ -569,6 +568,31 @@ void pocCreateBusinessLicense(void) {
 	return;
 }
 
+void pocCreatePersonCard(void) {
+	CvSeq *format;
+	static bool havedone = false;
+	if (havedone)
+		return;
+	havedone = true;
+	TechOcrCreateFormat(format, "居民身份证", 4160, 3120);
+
+	TechOcrFormatAddFeature(format, 559, 591, 108, 104, "姓");
+	TechOcrFormatAddFeature(format, 753, 587, 97, 113, "名");
+	TechOcrFormatAddFeature(format, 552, 873, 111, 112, "性");
+	TechOcrFormatAddFeature(format, 743, 877, 114, 113, "别");
+	TechOcrFormatAddFeature(format, 995, 873, 116, 129, "男");
+	TechOcrFormatAddFeature(format, 546, 1468, 110, 110, "住");
+	TechOcrFormatAddFeature(format, 738, 1471, 110, 108, "址");
+
+	TechOcrFormatAddContent(format, 997, 542, 1400, 166, "姓名");
+	TechOcrFormatAddContent(format, 995, 873, 300, 129, "性别");
+	TechOcrFormatAddContent(format, 1736, 873, 600, 129, "民族");
+	TechOcrFormatAddContent(format, 985, 1465, 1523, 536, "住址", CHARTYPE_CONTENT_BLOCK);
+	TechOcrFormatAddContent(format, 1557, 2215, 2050, 137, "公民身份号码");
+
+}
+
+
 void pocTesseractInit(void) {
 	char *utfstr, *gbstr;
 	long gsize;
@@ -613,6 +637,17 @@ void pocTesseractInit(void) {
 
 }
 
+void pcoImagePreprocess(char *filename) {
+	IplImage *src, *dst;
+	int i;
+
+	src = cvLoadImage(filename, 1);
+	dst = TrImageThreshold(src, 7, 7, 180);
+	ComShowImage("dst", dst);
+	cvSaveImage("z:\\solution\\files\\pb1.jpg", dst);
+	cvWaitKey(0);
+
+}
 void pocMemoryDebug(void) {
 
 }

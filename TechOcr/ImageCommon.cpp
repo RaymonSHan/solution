@@ -703,6 +703,11 @@ IplImage* TrWarpPerspective(IplImage *img, int w, int h, CvMat *warp, CvMat *war
 			cvMatMul(warp2, warp, totalwarp);			// the order is important
 			cvWarpPerspective(img, dst, totalwarp);
 			cvReleaseMat(&totalwarp);
+
+
+// ComShowImage("img", img);
+// ComShowImage("rot", dst);
+// cvWaitKey(0);
 		}
 		else {
 			cvWarpPerspective(img, dst, warp2);
@@ -711,6 +716,9 @@ IplImage* TrWarpPerspective(IplImage *img, int w, int h, CvMat *warp, CvMat *war
 	else {
 		if (warp != NULL) {
 			cvWarpPerspective(img, dst, warp);
+// ComShowImage("img", img);
+// ComShowImage("rot", dst);
+// cvWaitKey(0);
 		}
 		else {
 			cvCopy(img, dst);
@@ -781,6 +789,8 @@ void TechOcrExitTessAPI(tesseract::TessBaseAPI *api) {
 	delete api;
 	DEL_API
 }
+
+
 Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
 	Pixa *pixa;
 	Boxa *boxa, *boxc, *boxr;
@@ -793,6 +803,7 @@ Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
 	boxa = api->GetWords(&pixa);
 	NEW_PIXA
 	NEW_BOXA
+
 	if (!boxa || !boxa->box) {
 		return NULL;
 	}
@@ -850,6 +861,8 @@ char* TrTranslateInRect(tesseract::TessBaseAPI *api, tesseract::PageSegMode mode
 	// the first 4 * 32 bit is same for CvRect and Box
 	return TrTranslateInRect(api, mode, encode, (Box*)rect);
 }
+
+
 RESULT TechOcrCreatePix(IplImage *img, int w, int h, CvPoint2D32f *corner, Pix *&pix, CvMat *warp) {
 	IplImage *dst;
 	CvPoint2D32f dstcornet[4];
@@ -880,6 +893,8 @@ RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api, CvSeq *featu
 	api->SetImage(pix);
 
 	boxa = TrChoiceBoxInBoxa(api, pix);
+	if (!boxa)
+		return RESULT_ERR;
 
 	box = boxa->box;
 	for (i = 0; i < boxa->n; i++) {
@@ -889,9 +904,11 @@ RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api, CvSeq *featu
 		found.desc = NULL;
 		cvSeqPush(feature, &found);
 		delete[] str;
+		DEL_STRING
 		box++;
 	}
 	boxaDestroy(&boxa);
+	DEL_BOXA
 	return RESULT_OK;
 }
 CvSeq* TrGetFormatByName(char* name) {
@@ -1109,7 +1126,7 @@ void TrGetCornerInMatch(CvSeq *feature, CvSeq *format, int maxfea, int maxfor, C
 		}
 	}
 }
-#define MIN_CONFIRM				6
+#define MIN_CONFIRM				4
 RESULT TechOcrFormatMostMatch(CvSeq *feature, CvSeq *&bestformat, int &maxmatch, CvMat *wrap) {		// *& only returen pointer
 	CvSeq *now;
 	RESULT result = RESULT_ERR;
@@ -1120,7 +1137,7 @@ RESULT TechOcrFormatMostMatch(CvSeq *feature, CvSeq *&bestformat, int &maxmatch,
 
 	if (bestformat) {
 		maxmatch = TrFeatureMostMatch(feature, bestformat, maxfea, maxfor);
-		if (maxmatch > MIN_CONFIRM)
+		if (maxmatch >= MIN_CONFIRM)
 			result = RESULT_OK;
 	}
 	else {
@@ -1227,14 +1244,21 @@ RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvS
 	api = TechOcrInitTessAPI();
 	api->SetImage(pix);
 	boxa = api->GetWords(&pixa);
+
+ComDrawBoxs(rotated, boxa, &CV_RGB(100,67,91), 10);
+
 	tesseract::PageSegMode mode;
 	for (i = 0; i < bestformat->total; i++) {
 		found = (CharFound*)cvGetSeqElem(bestformat, i);
 		if (found->chartype != CHARTYPE_CONTENT_BLOCK && found->chartype != CHARTYPE_CONTENT_WORD) {
 			continue;
 		}
-		rect = ComDetectWord(pixa, &(found->rect));
-		ComEnlargeRect(&rect, rect, ENLAGRE_X, ENLARGE_Y);
+
+// 		rect = ComDetectWord(pixa, &(found->rect));			// this one is replaced by following two
+		ComEnlargeRect(&(found->rect), rectenlarge, ENLAGRE_X, ENLARGE_Y);
+ 		rect = ComDetectWord(pixa, &rectenlarge);
+// 		ComEnlargeRect(&rect, rect, ENLAGRE_X, ENLARGE_Y);
+
 		if (found->chartype == CHARTYPE_CONTENT_BLOCK) {
 			mode = tesseract::PSM_SINGLE_BLOCK;
 		}
@@ -1249,10 +1273,18 @@ RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvS
 		//	found->desc = str;
 		//	std::cout << str << std::endl;
 	}
+
+// ComShowImage("rot", rotated);
+// cvWaitKey(0);
+
 	boxaDestroy(&boxa);
+	DEL_BOXA
 	pixaDestroy(&pixa);
+	DEL_PIXA
 	cvReleaseImage(&rotated);
+	DEL_IPLIMAGE
 	pixDestroy(&pix);
+	DEL_PIXIMAGE
 	TechOcrExitTessAPI(api);
 	return RESULT_OK;
 }
@@ -1310,7 +1342,9 @@ RESULT TechOcrProcessPage(IplImage *img, std::string &output) {
 	output += "]}";
 
 	delete[] outputchar;
+	DEL_STRING
 	pixDestroy(&pix);
+	DEL_PIXIMAGE
 	TechOcrExitTessAPI(api);
 
 	return RESULT_OK;
@@ -1318,7 +1352,7 @@ RESULT TechOcrProcessPage(IplImage *img, std::string &output) {
 
 char* TechOcr(char *format, char *filename) {
 	char *output;
-	RESULT result;
+	RESULT result= RESULT_ERR;
 	CvPoint2D32f corner[4];
 	CvPoint2D32f *pcorner = corner;
 	IplImage *src, *dst;
@@ -1334,6 +1368,7 @@ char* TechOcr(char *format, char *filename) {
 	if (!src)
 		return NULL;
 	storage = cvCreateMemStorage(0);
+	NEW_STORAGE
 	bestformat = TrGetFormatByName(format);
 
 	float initmat[3 * 3] = { 1, 0, 0, 0, 1, 0, 0, 0, 1 };
@@ -1346,6 +1381,7 @@ char* TechOcr(char *format, char *filename) {
 // 	warp1 = cvCreateMat(3, 3, CV_32FC1, initmat);
 // 	warp2 = cvCreateMat(3, 3, CV_32FC1, initmat);
 	dst = cvCloneImage(src);
+	NEW_IPLIMAGE
 	for (;;) {
 		api = TechOcrInitTessAPI();
 		result = TechOcrGetFourCorner(dst, corner, 1);
@@ -1357,18 +1393,21 @@ char* TechOcr(char *format, char *filename) {
 			pcorner = corner;
 			pwarp1 = warp1;
 		}
+
 		TechOcrCreatePix(dst, dst->width, dst->height, pcorner, pix, warp1);
 
 		feature = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
 		result = TechOcrGetFeatureChar(pix, api, feature);
 		TechOcrFormatMostMatch(feature, bestformat, match, warp2);
 
-		if ((bestformat && match > MIN_CONFIRM) || rotateloop >= 4) {
+		if ((bestformat && match >= MIN_CONFIRM) || rotateloop >= 4) {
 			// record now bestformat
 			break;
 		}
 		cvReleaseImage(&dst);
+		DEL_IPLIMAGE
 		pixDestroy(&pix);
+		DEL_PIXIMAGE
 		cvRelease((void**)&feature);
 		TechOcrExitTessAPI(api);
 		rotateloop++;
@@ -1376,12 +1415,13 @@ char* TechOcr(char *format, char *filename) {
 	}
 
 	pixDestroy(&pix);
+	DEL_PIXIMAGE
 	TechOcrExitTessAPI(api);
 	ComReleaseCharFound(feature);
 
 	std::string outstr;
 	CharFound* found, *featurematch;
-	if (bestformat && match > MIN_CONFIRM) {
+	if (bestformat && match >= MIN_CONFIRM) {
 		content = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
 		TechOcrDetectWordsInFormat(dst, pwarp1, warp2, bestformat, content);
 //		TechOcrDetectWordsInFormat(dst, warp1, warp2, bestformat, content);
@@ -1392,19 +1432,22 @@ char* TechOcr(char *format, char *filename) {
 	else {
 		TechOcrProcessPage(dst, outstr);
 	}
-	cvWaitKey(0);
 
 	int strlength = outstr.length();
 	output = new char[strlength + 10];
+	NEW_STRING
 	strncpy(output, outstr.c_str(), strlength);
 	output[strlength] = 0;
 
 	cvReleaseMat(&warp1);
 	cvReleaseMat(&warp2);
 	cvReleaseMemStorage(&storage);
+	DEL_STORAGE
 
 	cvReleaseImage(&dst);
+	DEL_IPLIMAGE
 	cvReleaseImage(&src);
+	DEL_IPLIMAGE
 	return output;
 }
 
