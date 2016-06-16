@@ -804,8 +804,16 @@ Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
 	NEW_PIXA
 	NEW_BOXA
 
-	if (!boxa || !boxa->box) {
+	if (!boxa) {
+		DEL_BOXA
+		if (pixa) {
+			pixaDestroy(&pixa);
+			DEL_PIXA
+		}
 		return NULL;
+	}
+	if (!boxa->box) {
+		return boxa;
 	}
 
 	boxc = boxaCreate(boxa->n);
@@ -848,12 +856,14 @@ char* TrTranslateInRect(tesseract::TessBaseAPI *api, tesseract::PageSegMode mode
 	api->Recognize(NULL);
 	if (encode == ENCODE_GBK) {
 		utfstr = api->GetUTF8Text();
+		NEW_STRING
 		ComUtf8ToGbk(utfstr, (long)strlen(utfstr), str, gsize);
 		delete[] utfstr;
 		DEL_STRING
 	}
 	else if (encode == ENCODE_UTF8) {
 		str = api->GetUTF8Text();
+		NEW_STRING
 	}
 	return str;
 }
@@ -943,6 +953,7 @@ RESULT TechOcrCreateFormat(CvSeq *&format, char *name, int w, int h, TrEncodeMod
 	Assign(found.rect, 0, 0, w, h);
 	found.found = (int)InterInc(&nowid) - 1;
 	Assign(found.desc, name, encode);
+	DEL_STRING								// for balance, this will not delete
 	found.chartype = CHARTYPE_FORMAT_ID;
 	cvSeqPush(format, &found);
 	return RESULT_OK;
@@ -962,6 +973,7 @@ RESULT TechOcrFormatAddContent(CvSeq *format, int x, int y, int w, int h, char *
 
 	Assign(found.rect, x, y, w, h);
 	Assign(found.desc, c, encode);
+	DEL_STRING								// for balance, this will not delete
 	found.chartype = mode;
 	cvSeqPush(format, &found);
 	return RESULT_OK;
@@ -1244,8 +1256,10 @@ RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvS
 	api = TechOcrInitTessAPI();
 	api->SetImage(pix);
 	boxa = api->GetWords(&pixa);
+	NEW_PIXA
+	NEW_BOXA
 
-ComDrawBoxs(rotated, boxa, &CV_RGB(100,67,91), 10);
+// ComDrawBoxs(rotated, boxa, &CV_RGB(100,67,91), 10);
 
 	tesseract::PageSegMode mode;
 	for (i = 0; i < bestformat->total; i++) {
@@ -1329,6 +1343,7 @@ RESULT TechOcrProcessPage(IplImage *img, std::string &output) {
 	api->SetImage(pix);
 
 	outputchar = api->GetUTF8Text();
+	NEW_STRING
 
 	output = "{\"version\":\"";
 	output += TECHOCR_VERSION;
@@ -1365,6 +1380,7 @@ char* TechOcr(char *format, char *filename) {
 	int i;
 
 	src = cvLoadImage(filename, 1);
+	NEW_IPLIMAGE
 	if (!src)
 		return NULL;
 	storage = cvCreateMemStorage(0);
