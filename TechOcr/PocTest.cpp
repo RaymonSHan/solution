@@ -103,7 +103,7 @@ void pocFindFeatureWords(char *src) {
 	api->SetImage(pix);
 // 	boxa = api->GetConnectedComponents(&pixa);
 	//boxa = api->GetWords(&pixa);
-	boxc = TrChoiceBoxInBoxa(api, pix);
+	boxc = TrChoiceBoxInBoxa(api, pix, img);
 
 	box = boxc->box;
 	for (i = 0; i < boxc->n; i++) {
@@ -308,7 +308,7 @@ void pcoPreprocess(char *filename) {
 		TechOcrCreatePix(dst, dst->width, dst->height, pcorner, pix, warp1);
 
 		feature = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
-		result = TechOcrGetFeatureChar(pix, api, feature);
+		result = TechOcrGetFeatureChar(pix, api, feature, dst);
 		TechOcrFormatMostMatch(feature, bestformat, match, warp2);
 
 		if ((bestformat && match >= MIN_CONFIRM) || rotateloop >= 4) {
@@ -449,7 +449,7 @@ void pocOnceMemoryLeak(char *filename) {
 // 		TechOcrCreatePix(src, src->width, src->height, corner, pix, warp1);
 
 		feature = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
-// 		result = TechOcrGetFeatureChar(pix, api, feature);
+// 		result = TechOcrGetFeatureChar(pix, api, feature, src);
 
 		ComReleaseCharFound(feature);
 // 		pixDestroy(&pix);

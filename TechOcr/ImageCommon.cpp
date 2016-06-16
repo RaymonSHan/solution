@@ -1,5 +1,6 @@
 #include "ImageCommon.h"
 #include "MemoryCheck.h"
+#include "DisplayCheck.h"
 
 double ComPointToLineDist(int x, int y, int x1, int y1, int x2, int y2) {
 	double a = (x2 - x1) * (y - y1) - (y2 - y1) * (x - x1);
@@ -529,12 +530,13 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 	contimg = doingimg;
 
 	lines = TrCreateHoughLines(contimg, storage);
-// 	 	cvRelease((void**)lines);
-
+	DISPLAYINFO{
+		ComDrawLines(olddoingimg, lines, false, &CV_RGB(187,212,23), 5);
+	}
 	linesappr = TrAggregationLines(lines, storage, minsize / 30);
-// 	cvRelease((void**)linesappr);
-	if (false) {			// should add condition for draw 
-		ComDrawLineForFitLine(img, linesappr);
+
+	DISPLAYINFO {
+ 		ComDrawLineForFitLine(olddoingimg, linesappr, &CV_RGB(87,22,123), 15);
 	}
 	if (!linesappr || linesappr->total == 0) {
 		result = RESULT_ERR;
@@ -558,6 +560,9 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 			else {
 				for (i = 0; i < 4; i++) {
 					*corner = *(CvPoint2D32f*)cvGetSeqElem(conners, i);
+					DISPLAYINFO{
+						cvCircle(olddoingimg, cvPointFrom32f(*corner), 30, CV_RGB(12,177,24), 5);
+					}
 					corner++;
 				}
 			}
@@ -566,6 +571,11 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 // 		cvRelease((void**)conners);
 // 		cvRelease((void**)lines);
 	}
+	DISPLAYINFO{
+		ComShowImage("Corner", olddoingimg);
+		cvWaitKey(1);
+	}
+
 	cvReleaseMemStorage(&storage);
 	DEL_STORAGE
 	cvReleaseImage(&contimg);
@@ -791,7 +801,7 @@ void TechOcrExitTessAPI(tesseract::TessBaseAPI *api) {
 }
 
 
-Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
+Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix, IplImage *img) {
 	Pixa *pixa;
 	Boxa *boxa, *boxc, *boxr;
 	Box  **box;
@@ -814,6 +824,10 @@ Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
 	}
 	if (!boxa->box) {
 		return boxa;
+	}
+
+	DISPLAYINFO{
+		ComDrawBoxs(img, boxa, &CV_RGB(23, 111, 12), 3);
 	}
 
 	boxc = boxaCreate(boxa->n);
@@ -839,6 +853,11 @@ Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
 		}
 		box++;
 	}
+
+	DISPLAYINFO{
+		ComDrawBoxs(img, boxr, &CV_RGB(231, 11, 12), 5);
+	}
+
 	boxaDestroy(&boxc);
 	DEL_BOXA
 	pixaDestroy(&pixa);
@@ -873,7 +892,7 @@ char* TrTranslateInRect(tesseract::TessBaseAPI *api, tesseract::PageSegMode mode
 }
 
 
-RESULT TechOcrCreatePix(IplImage *img, int w, int h, CvPoint2D32f *corner, Pix *&pix, CvMat *warp) {
+IplImage* TechOcrCreatePix(IplImage *img, int w, int h, CvPoint2D32f *corner, Pix *&pix, CvMat *warp) {
 	IplImage *dst;
 	CvPoint2D32f dstcornet[4];
 
@@ -883,16 +902,18 @@ RESULT TechOcrCreatePix(IplImage *img, int w, int h, CvPoint2D32f *corner, Pix *
 		dst = TrWarpPerspective(img, w, h, warp);
 	}
 	else {
-		dst = img;
+		dst = cvCloneImage(img);
+		NEW_IPLIMAGE
+// 		dst = img;
 	}
 	pix = TrPixCreateFromIplImage(dst);
-	if (corner) {
-		cvReleaseImage(&dst);
-		DEL_IPLIMAGE
-	}
-	return RESULT_OK;
+// 	if (corner) {
+// 		cvReleaseImage(&dst);
+// 		DEL_IPLIMAGE
+// 	}
+	return dst;
 }
-RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api, CvSeq *feature) {
+RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api, CvSeq *feature, IplImage *img) {
 	RESULT result;
 	Boxa *boxa;
 	Box **box;
@@ -901,8 +922,10 @@ RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api, CvSeq *featu
 	CharFound found;
 
 	api->SetImage(pix);
+// 	api->SetSourceResolution(PPI);
 
-	boxa = TrChoiceBoxInBoxa(api, pix);
+
+	boxa = TrChoiceBoxInBoxa(api, pix, img);
 	if (!boxa)
 		return RESULT_ERR;
 
@@ -911,6 +934,7 @@ RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api, CvSeq *featu
 		str = TrTranslateInRect(api, tesseract::PSM_SINGLE_CHAR, ENCODE_UTF8, *box);
 		Assign(found.rect, **box);
 		AssignRemoveCR(found.found, str, ENCODE_UTF8);
+		OUTPUTRECT(&(found.rect), str)
 		found.desc = NULL;
 		cvSeqPush(feature, &found);
 		delete[] str;
@@ -1255,6 +1279,8 @@ RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvS
 	pix = TrPixCreateFromIplImage(rotated);
 	api = TechOcrInitTessAPI();
 	api->SetImage(pix);
+// 	api->SetSourceResolution(PPI);
+
 	boxa = api->GetWords(&pixa);
 	NEW_PIXA
 	NEW_BOXA
@@ -1341,6 +1367,8 @@ RESULT TechOcrProcessPage(IplImage *img, std::string &output) {
 	api = TechOcrInitTessAPI();
 	pix = TrPixCreateFromIplImage(img);
 	api->SetImage(pix);
+// 	api->SetSourceResolution(PPI);
+
 
 	outputchar = api->GetUTF8Text();
 	NEW_STRING
@@ -1370,7 +1398,7 @@ char* TechOcr(char *format, char *filename) {
 	RESULT result= RESULT_ERR;
 	CvPoint2D32f corner[4];
 	CvPoint2D32f *pcorner = corner;
-	IplImage *src, *dst;
+	IplImage *src, *dst, *rotated;
 	Pix *pix;
 	tesseract::TessBaseAPI *api;
 	CvSeq *feature, *content, *bestformat;
@@ -1388,14 +1416,10 @@ char* TechOcr(char *format, char *filename) {
 	bestformat = TrGetFormatByName(format);
 
 	float initmat[3 * 3] = { 1, 0, 0, 0, 1, 0, 0, 0, 1 };
-//	warp1 = cvCreateMat(3, 3, CV_32FC1, initmat);
-//	warp2 = cvCreateMat(3, 3, CV_32FC1, initmat);
 	warp1 = cvCreateMat(3, 3, CV_32FC1);
 	warp2 = cvCreateMat(3, 3, CV_32FC1);
 	CvMat *pwarp1;
 
-// 	warp1 = cvCreateMat(3, 3, CV_32FC1, initmat);
-// 	warp2 = cvCreateMat(3, 3, CV_32FC1, initmat);
 	dst = cvCloneImage(src);
 	NEW_IPLIMAGE
 	for (;;) {
@@ -1409,17 +1433,22 @@ char* TechOcr(char *format, char *filename) {
 			pcorner = corner;
 			pwarp1 = warp1;
 		}
-
-		TechOcrCreatePix(dst, dst->width, dst->height, pcorner, pix, warp1);
+		rotated = TechOcrCreatePix(dst, dst->width, dst->height, pcorner, pix, warp1);
 
 		feature = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
-		result = TechOcrGetFeatureChar(pix, api, feature);
+		result = TechOcrGetFeatureChar(pix, api, feature, rotated);
 		TechOcrFormatMostMatch(feature, bestformat, match, warp2);
 
+		DISPLAYINFO {
+			ComShowImage("Rotate", rotated);
+			cvWaitKey(0);
+		}
 		if ((bestformat && match >= MIN_CONFIRM) || rotateloop >= 4) {
 			// record now bestformat
 			break;
 		}
+		cvReleaseImage(&rotated);
+		DEL_IPLIMAGE
 		cvReleaseImage(&dst);
 		DEL_IPLIMAGE
 		pixDestroy(&pix);
@@ -1460,6 +1489,8 @@ char* TechOcr(char *format, char *filename) {
 	cvReleaseMemStorage(&storage);
 	DEL_STORAGE
 
+	cvReleaseImage(&rotated);
+	DEL_IPLIMAGE
 	cvReleaseImage(&dst);
 	DEL_IPLIMAGE
 	cvReleaseImage(&src);
@@ -1494,5 +1525,4 @@ RESULT TechOcrFormatAddContent(char *formatname, int x, int y, int w, int h, cha
 	else
 		return RESULT_ERR;
 }
-
 

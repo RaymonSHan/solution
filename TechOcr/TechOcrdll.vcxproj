@@ -201,6 +201,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DisplayCheck.cpp" />
     <ClCompile Include="ImageCommon.cpp" />
     <ClCompile Include="MemoryCheck.cpp" />
     <ClCompile Include="PocTest.cpp" />
@@ -223,6 +224,7 @@
     <None Include="TechOcrDll.def" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DisplayCheck.h" />
     <ClInclude Include="ImageCommon.h" />
     <ClInclude Include="MemoryCheck.h" />
     <ClInclude Include="PocTest.h" />
