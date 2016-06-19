@@ -1,5 +1,5 @@
 #include "PocTest.h"
-
+#include "ImageProcess.h"
 
 
 void pocPixCreateFromIplImage(char *src, char *dst) {
@@ -12,7 +12,7 @@ void pocPixCreateFromIplImage(char *src, char *dst) {
 //	read as Pix, for confirm the data struct
 
 	Pix* pixt;
-	pixt = TrPixCreateFromIplImage(img);
+	pixt = TrCreatePixFromIplImage(img);
 	if (pixt) {
 		pixWriteAutoFormat(dst, pixt);
 		pixDestroy(&pixt);
@@ -98,12 +98,12 @@ void pocFindFeatureWords(char *src) {
 	if (!img) {
 		return;
 	}
-	pix = TrPixCreateFromIplImage(img);
+	pix = TrCreatePixFromIplImage(img);
 	api = TechOcrInitTessAPI();
 	api->SetImage(pix);
 // 	boxa = api->GetConnectedComponents(&pixa);
 	//boxa = api->GetWords(&pixa);
-	boxc = TrChoiceBoxInBoxa(api, pix, img);
+	boxc = TrChoiceBoxInBoxa(api, pix);
 
 	box = boxc->box;
 	for (i = 0; i < boxc->n; i++) {
@@ -308,7 +308,7 @@ void pcoPreprocess(char *filename) {
 		TechOcrCreatePix(dst, dst->width, dst->height, pcorner, pix, warp1);
 
 		feature = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
-		result = TechOcrGetFeatureChar(pix, api, feature, dst);
+		result = TechOcrGetFeatureChar(pix, api, feature);
 		TechOcrFormatMostMatch(feature, bestformat, match, warp2);
 
 		if ((bestformat && match >= MIN_CONFIRM) || rotateloop >= 4) {
@@ -449,7 +449,7 @@ void pocOnceMemoryLeak(char *filename) {
 // 		TechOcrCreatePix(src, src->width, src->height, corner, pix, warp1);
 
 		feature = cvCreateSeq(0, sizeof(CvSeq), sizeof(CharFound), storage);
-// 		result = TechOcrGetFeatureChar(pix, api, feature, src);
+// 		result = TechOcrGetFeatureChar(pix, api, feature);
 
 		ComReleaseCharFound(feature);
 // 		pixDestroy(&pix);
@@ -650,4 +650,638 @@ void pcoImagePreprocess(char *filename) {
 }
 void pocMemoryDebug(void) {
 
+}
+
+
+// #define LOADFILE "z:\\solution\\files\\cl.jpg"
+// #define LOADFILE "z:\\solution\\files\\p1.jpg"
+// #define LOADFILE "z:\\solution\\files\\p\\p19.jpg"
+// #define LOADFILE "z:\\solution\\files\\pn1.jpg"
+#define LOADFILE "z:\\solution\\files\\p\\p06.jpg"
+
+// #define LOADFILE "z:\\solution\\files\\cc\\c1.jpg"
+
+void cvEqualizeHistColor(IplImage *src, IplImage *dst) {
+
+	//分别均衡化每个信道  
+	IplImage* redImage = cvCreateImage(cvGetSize(src), src->depth, 1);
+	IplImage* greenImage = cvCreateImage(cvGetSize(src), src->depth, 1);
+	IplImage* blueImage = cvCreateImage(cvGetSize(src), src->depth, 1);
+	cvSplit(src, blueImage, greenImage, redImage, NULL);
+
+	cvEqualizeHist(redImage, redImage);
+// 	cvEqualizeHist(greenImage, greenImage);
+// 	cvEqualizeHist(blueImage, blueImage);
+	//均衡化后的图像  
+	cvMerge(blueImage, greenImage, redImage, NULL, dst);
+
+}
+
+
+
+int ColorCount[COLOR_RANGE * COLOR_RANGE * COLOR_RANGE];
+
+
+IplImage* pocImageProcess(char *filename) {
+// 	if (false) {
+// 		IplImage *srcmin = cvLoadImage(LOADFILE);
+// 		TrIplImageChannelChoiceMin(srcmin);
+// 		ComShowImage("min", srcmin);
+// 		IplImage *srcmax = cvLoadImage(LOADFILE);
+// 		TrIplImageChannelChoiceMin(srcmax);
+// 		ComShowImage("max", srcmax);
+// 		cvWaitKey(0);
+// 	}
+// 
+// 	if (false) {
+// 		IplImage *srcr = cvLoadImage(LOADFILE);
+// 		IplImage *srcg = cvLoadImage(LOADFILE);
+// 		IplImage *srcb = cvLoadImage(LOADFILE);
+// 		TrIplImageChannelChoice(srcr, true, false, false);
+// 		TrIplImageChannelChoice(srcg, false, true, false);
+// 		TrIplImageChannelChoice(srcb, false, false, true);
+// 		ComShowImage("maxr", srcr);
+// 		ComShowImage("maxg", srcg);
+// 		ComShowImage("maxb", srcb);
+// 		cvWaitKey(0);
+// 	}
+
+#ifdef _DEBUG
+	filename = LOADFILE;
+#endif _DEBUG
+	if (false) {					// for get same color
+		IplImage *src = cvLoadImage(filename);
+// 		cvSetImageROI(src, cvRect(319, 155, 36, 32));			// for p07
+		cvSetImageROI(src, cvRect(779, 1072, 118, 104));			// for pn1
+
+//  		cvSetImageROI(src, cvRect(300, 300, 100, 100));
+
+		TrIplImageColorCount(src, ColorCount, 3);
+// 		cvResetImageROI(src);
+
+		ComShowImage("src", src);
+		cvWaitKey(0);
+		exit(0);
+
+	}
+	if (false) {
+		IplImage *src = cvLoadImage(filename);
+		TrIplImageRgbToYuv(src);
+
+
+		IplImage *srcy = cvCreateImage(cvGetSize(src), src->depth, 1);
+		IplImage *srcu = cvCreateImage(cvGetSize(src), src->depth, 1);
+		IplImage *srcv = cvCreateImage(cvGetSize(src), src->depth, 1);
+
+		cvSplit(src, srcv, srcu, srcy, NULL);
+
+		ComShowImage("srcy", srcy);
+		ComShowImage("srcu", srcu);
+		ComShowImage("srcv", srcv);
+		cvWaitKey(0);
+		exit(0);
+	}
+	if (false) {
+		IplImage *src = cvLoadImage(filename);
+		ComShowImage("src", src);
+
+		IplImage *dst = cvCreateImage(cvGetSize(src), 8, 3);
+		IplImage *src1c = cvCreateImage(cvGetSize(src), 8, 1);
+
+		cvSmooth(src, dst, CV_BLUR, src->width/10, src->height/10, 0, 0);
+		TrIplImageRgbToYuv(src);
+		TrIplImageRgbToYuv(dst);
+		TrIplImageDiv(dst, src);
+		TrIplImageYuvToRgb(src);
+
+		cvCvtColor(src, src1c, CV_BGR2GRAY);
+		cvEqualizeHist(src1c, src1c);
+
+// 		ComShowImage("src1", dst);
+		ComShowImage("src1c", src1c);
+// 		TrIplImageRgbToHsl(src);
+// 		TrIplImageChannelChoice(src, false, false, true, 0, 0, 128);
+// 		TrIplImageHslToRgb(src);
+
+// 		TrIplImageRgbToYuv(src);
+// 		TrIplImageDeltaColor(src, 79, 123, 148);
+// 		TrIplImageDeltaColor(src, 78, 173, 191);
+
+// 		dst = TrImageThreshold(src);
+
+// 		ComShowImage("dst", src);
+// 		ComShowImage("dst1", dst);
+		cvWaitKey(0);
+	}
+	if (false) {
+		IplImage *src = cvLoadImage(filename);
+		ComShowImage("src", src);
+
+		TrIplImageRateOneColor(src, 14, 95, 122, 40);
+// 		TrIplImageToWhite(src, 100);
+
+		ComShowImage("dst", src);
+		cvWaitKey(0);
+	}
+	if (false) {			// OK for white rect around
+		IplImage *src = cvLoadImage(filename);
+
+		ComShowImage("src", src);
+
+
+		IplImage *src1 = cvCloneImage(src);
+		IplImage *src2 = cvCloneImage(src);
+
+		IplImage *dst1 = cvCreateImage(cvGetSize(src), 8, 3);
+		IplImage *dst2 = cvCreateImage(cvGetSize(src), 8, 3);
+
+		IplImage *src1c1 = cvCreateImage(cvGetSize(src), 8, 1);
+		IplImage *src1c2 = cvCreateImage(cvGetSize(src), 8, 1);
+		IplImage *src1c3 = cvCreateImage(cvGetSize(src), 8, 1);
+
+		cvSmooth(src, dst1, CV_BLUR, src->width / 40, src->height / 40, 0, 0);
+		cvSmooth(src, dst2, CV_BLUR, src->width / 130, src->height / 130, 0, 0);
+
+		TrIplImageRgbToYuv(src1);
+		TrIplImageRgbToYuv(src2);
+
+		TrIplImageRgbToYuv(dst1);
+		TrIplImageRgbToYuv(dst2);
+
+		TrIplImageDiv(dst1, src1);
+		TrIplImageDiv(dst2, src2);
+
+		TrIplImageYuvToRgb(src1);
+		TrIplImageYuvToRgb(src2);
+
+// 		IplImage *src3 = cvCloneImage(src2);
+
+// 		TrIplImageOr(src1, src3);
+
+		cvCvtColor(src1, src1c1, CV_BGR2GRAY);
+		cvCvtColor(src2, src1c2, CV_BGR2GRAY);
+// 		cvCvtColor(src3, src1c3, CV_BGR2GRAY);
+		cvEqualizeHist(src1c1, src1c1);
+		cvEqualizeHist(src1c2, src1c2);
+// 		cvEqualizeHist(src1c3, src1c3);
+
+		ComShowImage("src1c1", src1c1);
+		ComShowImage("src1c2", src1c2);
+
+
+		// 		ComShowImage("src1", dst);
+// 		ComShowImage("src1c3", src1c3);
+		// 		TrIplImageRgbToHsl(src);
+		// 		TrIplImageChannelChoice(src, false, false, true, 0, 0, 128);
+		// 		TrIplImageHslToRgb(src);
+
+		// 		TrIplImageRgbToYuv(src);
+		// 		TrIplImageDeltaColor(src, 79, 123, 148);
+		// 		TrIplImageDeltaColor(src, 78, 173, 191);
+
+		// 		dst = TrImageThreshold(src);
+
+		// 		ComShowImage("dst", src);
+		// 		ComShowImage("dst1", dst);
+		cvWaitKey(0);
+
+	}
+	if (false) {		// make blank words
+		IplImage *src = cvLoadImage(filename);
+
+		ComShowImage("src", src);
+
+		IplImage *src2 = cvCloneImage(src);
+
+		IplImage *dst2 = cvCreateImage(cvGetSize(src), 8, 3);
+
+		IplImage *src1c2 = cvCreateImage(cvGetSize(src), 8, 1);
+
+		cvSmooth(src, dst2, CV_BLUR, src->width / 130, src->height / 130, 0, 0);
+
+		TrIplImageRgbToYuv(src2);
+
+		TrIplImageRgbToYuv(dst2);
+
+		TrIplImageDiv(dst2, src2);
+		// 		TrIplImageOneColor(src2, 55, 0, 0, 55);
+		// 		TrIplImageNot(src2, true, false, false);
+
+		TrIplImageYuvToRgb(src2);
+// 		ComShowImage("src2", src2);
+// 		TrIplImageOneColor(src2, 200, 200, 200, 55);
+
+		// 		IplImage *src3 = cvCloneImage(src2);
+
+		// 		TrIplImageOr(src1, src3);
+
+		cvCvtColor(src2, src1c2, CV_BGR2GRAY);
+		// 		cvCvtColor(src3, src1c3, CV_BGR2GRAY);
+		cvEqualizeHist(src1c2, src1c2);
+		// 		cvEqualizeHist(src1c3, src1c3);
+		ComShowImage("src1c1", src1c2);
+		TrIplImageOneColor(src1c2, 15, 15);
+		int gassize = (MIN(src->height, src->width) / 250) * 2 + 5;
+		cvSmooth(src1c2, src1c2, CV_GAUSSIAN, gassize, gassize, 0, 0);
+		ComShowImage("src1c2", src1c2);
+		TrIplImageOneColor(src1c2, 15, 15);
+
+		ComShowImage("src1c3", src1c2);
+
+
+		// 		ComShowImage("src1", dst);
+		// 		ComShowImage("src1c3", src1c3);
+		// 		TrIplImageRgbToHsl(src);
+		// 		TrIplImageChannelChoice(src, false, false, true, 0, 0, 128);
+		// 		TrIplImageHslToRgb(src);
+
+		// 		TrIplImageRgbToYuv(src);
+		// 		TrIplImageDeltaColor(src, 79, 123, 148);
+		// 		TrIplImageDeltaColor(src, 78, 173, 191);
+
+		// 		dst = TrImageThreshold(src);
+
+		// 		ComShowImage("dst", src);
+		// 		ComShowImage("dst1", dst);
+		cvWaitKey(0);
+
+	}
+	if (false) {				// sub is better than div
+		IplImage *src = cvLoadImage(filename);
+
+// 		cvEqualizeHistColor(src, src);
+		ComShowImage("src", src);
+
+// 		IplImage *src1 = cvCloneImage(src);
+// 		IplImage *dst = cvCreateImage(cvGetSize(src), 8, 3);
+// 		IplImage *src1c1 = cvCreateImage(cvGetSize(src), 8, 1);
+// 		IplImage *src1c2 = cvCreateImage(cvGetSize(src), 8, 1);
+// 		IplImage *src1c3 = cvCreateImage(cvGetSize(src), 8, 1);
+// 
+// 		for (int i = 0; i < 10; i++) {
+// 			cvSmooth(src1, dst, CV_BLUR, src->width / 130, src->height / 130, 0, 0);
+// 			TrIplImageRgbToYuv(src1);
+// 			TrIplImageRgbToYuv(dst);
+// 			TrIplImageSub(dst, src1);
+// 			TrIplImageYuvToRgb(src1);
+// 			cvCvtColor(src1, src1c1, CV_BGR2GRAY);
+// 			cvEqualizeHist(src1c1, src1c1);
+// 
+// 			ComShowImage("src1", src1);
+// 			ComShowImage("src1c1", src1c1);
+// 			cvMerge(src1c1, NULL, NULL, NULL, src1);
+// 
+// 			cvWaitKey(0);
+// 
+// 		}
+
+		IplImage *src2 = cvCloneImage(src);
+
+		IplImage *dst2 = cvCreateImage(cvGetSize(src), 8, 3);
+
+		IplImage *src1c2 = cvCreateImage(cvGetSize(src), 8, 1);
+
+		cvSmooth(src, dst2, CV_BLUR, src->width / 130, src->height / 130, 0, 0);
+
+		TrIplImageRgbToYuv(src2);
+
+		TrIplImageRgbToYuv(dst2);
+
+		TrIplImageSub(dst2, src2);
+		// 		TrIplImageOneColor(src2, 55, 0, 0, 55);
+		// 		TrIplImageNot(src2, true, false, false);
+
+		TrIplImageYuvToRgb(src2);
+		// 		ComShowImage("src2", src2);
+		// 		TrIplImageOneColor(src2, 200, 200, 200, 55);
+
+		// 		IplImage *src3 = cvCloneImage(src2);
+
+		// 		TrIplImageOr(src1, src3);
+
+		cvCvtColor(src2, src1c2, CV_BGR2GRAY);
+		// 		cvCvtColor(src3, src1c3, CV_BGR2GRAY);
+		cvEqualizeHist(src1c2, src1c2);
+		// 		cvEqualizeHist(src1c3, src1c3);
+		ComShowImage("src1c1", src1c2);
+		TrIplImageOneColor(src1c2, 225, 31);
+
+// 		cvAdaptiveThreshold(src1c2, src1c2, 130, CV_ADAPTIVE_THRESH_MEAN_C,
+// 			CV_THRESH_BINARY_INV, 65, 20);
+
+		ComShowImage("src1c2", src1c2);
+// 		int gassize = (MIN(src->height, src->width) / 250) * 2 + 5;
+// 		cvSmooth(src1c2, src1c2, CV_GAUSSIAN, gassize, gassize, 0, 0);
+		TrIplImageOneColor(src1c2, 15, 15);
+
+		ComShowImage("src1c3", src1c2);
+
+
+		// 		ComShowImage("src1", dst);
+		// 		ComShowImage("src1c3", src1c3);
+		// 		TrIplImageRgbToHsl(src);
+		// 		TrIplImageChannelChoice(src, false, false, true, 0, 0, 128);
+		// 		TrIplImageHslToRgb(src);
+
+		// 		TrIplImageRgbToYuv(src);
+		// 		TrIplImageDeltaColor(src, 79, 123, 148);
+		// 		TrIplImageDeltaColor(src, 78, 173, 191);
+
+		// 		dst = TrImageThreshold(src);
+
+		// 		ComShowImage("dst", src);
+		// 		ComShowImage("dst1", dst);
+		cvWaitKey(0);
+
+	}
+	if (true) {			// for cmp function, 
+
+		IplImage *src = cvLoadImage(filename);
+
+
+		IplImage *src1 = cvCloneImage(src);
+		IplImage *dst1 = cvCreateImage(cvGetSize(src), 8, 3);				// for 1/10 gassize
+		IplImage *dst2 = cvCreateImage(cvGetSize(src), 8, 3);				// for 1/60 gassize
+		IplImage *src1c1 = cvCreateImage(cvGetSize(src), 8, 1);
+		int gassize = (MIN(src->height, src->width) / 20) * 2 + 3;
+		cvSmooth(src, dst1, CV_BLUR, gassize, gassize, 0, 0);
+		TrIplImageRgbToYuv(dst1);
+		TrIplImageRgbToYuv(src1);
+		TrIplImageBeOne(dst1, src1);
+		TrIplImageYuvToRgb(src1);
+		ComShowImage("src1", src1);
+
+		gassize = (MIN(src->height, src->width) / 120) * 2 + 3;
+		cvSmooth(src1, dst2, CV_GAUSSIAN, gassize, gassize, 0, 0);
+		TrIplImageRgbToYuv(src1);
+		TrIplImageRgbToYuv(dst2);
+		TrIplImageCmp(dst2, src1);
+		TrIplImageYuvToRgb(src1);
+
+		// 		TrIplImageOneColor(src2, 55, 0, 0, 55);
+		// 		TrIplImageNot(src2, true, false, false);
+
+
+		cvCvtColor(src1, src1c1, CV_BGR2GRAY);
+		gassize = (MIN(src->height, src->width) / 400) * 2 + 3;
+		cvSmooth(src1c1, src1c1, CV_GAUSSIAN, gassize, gassize, 0, 0);
+
+// 		cvEqualizeHist(src1c2, src1c2);
+		ComShowImage("src1c1", src1c1);
+		TrIplImageOneColor(src1c1, 200, 56);
+
+
+		ComShowImage("src1c2", src1c1);
+// 		int gassize = (MIN(src->height, src->width) / 250) * 2 + 5;
+// 		cvSmooth(src1c2, src1c2, CV_GAUSSIAN, gassize, gassize, 0, 0);
+		TrIplImageOneColor(src1c1, 15, 15);
+
+		ComShowImage("src1c3", src1c1);
+
+		cvWaitKey(0);
+
+
+	}
+	if (false) {
+		IplImage *src = cvLoadImage(filename);
+		int gassize = (MIN(src->height, src->width) / 400) * 2 + 3;
+		cvSmooth(src, src, CV_GAUSSIAN, gassize, gassize, 0, 0);
+
+// 		TrIplImageChannelChoiceMin(src);
+		IplImage *src1 = cvCloneImage(src);
+		IplImage *src2 = cvCloneImage(src);
+		IplImage *dst1 = cvCreateImage(cvGetSize(src), 8, 3);
+		IplImage *src1c1 = cvCreateImage(cvGetSize(src), 8, 1);
+		
+		cvSmooth(src, dst1, CV_BLUR, src->width / 145, src->height / 145, 0, 0);
+		TrIplImageRgbToYuv(src1);
+		TrIplImageRgbToYuv(src2);
+		TrIplImageRgbToYuv(dst1);
+		TrIplImageDiv(dst1, src1);
+
+
+// 		TrIplImageSub(src2, src1);
+
+// 		TrIplImageOneColor(src1, 10, 10, 10, 15);
+
+		TrIplImageYuvToRgb(src1);
+		TrIplImageYuvToRgb(src2);
+// 		cvDilate(src1, src1, NULL, 1);
+// 		cvErode(src1, src1, NULL, 1);
+// 		cvSmooth(src1, src1, CV_GAUSSIAN, 35, 35, 0, 0);
+
+// 		cvCvtColor(src1, src1c1, CV_BGR2GRAY);
+// 		cvEqualizeHist(src1c1, src1c1);// 		ComShowImage("src1c", src1c1);
+
+
+// 		cvAdaptiveThreshold(src1c1, src1c1, 200, CV_ADAPTIVE_THRESH_MEAN_C,
+// 			CV_THRESH_BINARY_INV, 25, 10);
+
+		ComShowImage("src1", src1);
+		ComShowImage("src2", src2);
+		cvWaitKey(0);
+		return src1;
+	}
+	if (false) {
+		IplImage *src = cvLoadImage(filename);
+		ComShowImage("src", src);
+
+		IplImage *dst = cvCreateImage(cvGetSize(src), 8, 3);
+		IplImage *src1c = cvCreateImage(cvGetSize(src), 8, 1);
+
+		cvSmooth(src, dst, CV_BLUR, src->width / 100, src->height / 100, 0, 0);
+		TrIplImageRgbToYuv(src);
+		TrIplImageRgbToYuv(dst);
+		TrIplImageDiv(dst, src);
+		TrIplImageYuvToRgb(src);
+
+		cvSmooth(src, dst, CV_BLUR, src->width / 100, src->height / 100, 0, 0);
+		TrIplImageRgbToYuv(src);
+		TrIplImageRgbToYuv(dst);
+		TrIplImageDiv(dst, src);
+		TrIplImageYuvToRgb(src);
+
+
+
+
+		cvCvtColor(src, src1c, CV_BGR2GRAY);
+		cvEqualizeHist(src1c, src1c);
+
+		// 		cvAdaptiveThreshold(src1c1, src1c1, 200, CV_ADAPTIVE_THRESH_MEAN_C,
+		// 			CV_THRESH_BINARY_INV, 25, 10);
+
+		ComShowImage("src1c", src1c);
+		cvWaitKey(0);
+	}
+	if (false) {
+		IplImage *src = cvLoadImage(filename);
+		ComShowImage("src", src);
+		TrIplImageRgbToYuv(src);
+
+		IplImage *imgy = cvCloneImage(src);
+		IplImage *imgu = cvCloneImage(src);
+		IplImage *imgv = cvCloneImage(src);
+
+		TrIplImageChannelChoice(imgy, false, true, true, 0, 0, 0);
+		TrIplImageChannelChoice(imgu, true, false, true, 0, 0, 0);
+		TrIplImageChannelChoice(imgv, true, true, false, 0, 0, 0);
+
+
+
+		// 		cvAdaptiveThreshold(imgu, imgu, 10, CV_ADAPTIVE_THRESH_MEAN_C,
+		// 			CV_THRESH_BINARY_INV, 25, 10);
+		ComShowImage("imgy", imgy);
+		ComShowImage("imgu", imgu);
+		ComShowImage("imgv", imgv);
+		cvWaitKey(0);
+	}
+	if (false) {
+		IplImage *src = cvLoadImage(filename);
+
+		IplImage *imgy = cvCreateImage(cvGetSize(src), 8, 1);
+		IplImage *imgu = cvCreateImage(cvGetSize(src), 8, 1);
+		IplImage *imgv = cvCreateImage(cvGetSize(src), 8, 1);
+
+		ComShowImage("src", src);
+		TrIplImageRgbToYuv(src);
+		cvSplit(src, imgv, 0, 0, 0);//分离三个通道
+		cvSplit(src, 0, imgu, 0, 0);
+		cvSplit(src, 0, 0, imgy, 0);
+
+
+// 		cvAdaptiveThreshold(imgu, imgu, 10, CV_ADAPTIVE_THRESH_MEAN_C,
+// 			CV_THRESH_BINARY_INV, 25, 10);
+		ComShowImage("imgy", imgy);
+		ComShowImage("imgu", imgu);
+		ComShowImage("imgv", imgv);
+		cvWaitKey(0);
+	}
+	if (false) {
+		IplImage *src = cvLoadImage(filename);
+		ComShowImage("src", src);
+		TrIplImageRgbToHsl(src);
+		TrIplImageChannelChoice(src, false, true, true, 128, 128, 128);
+		TrIplImageHslToRgb(src);
+
+		ComShowImage("dst", src);
+		cvWaitKey(0);
+	}
+	if (false) {
+		IplImage *image, *hsv, *hue, *saturation, *value;//图像空间
+		image = cvLoadImage(filename);//打开图像源图像
+
+		hsv = cvCreateImage(cvGetSize(image), 8, 3);//给hsv色系的图像申请空间
+		hue = cvCreateImage(cvGetSize(image), 8, 3);  //色调
+		saturation = cvCreateImage(cvGetSize(image), 8, 1);//饱和度
+		value = cvCreateImage(cvGetSize(image), 8, 1);//亮度
+
+	// 	cvNamedWindow("image", CV_WINDOW_AUTOSIZE);//用于显示图像的窗口
+	// 	cvNamedWindow("hsv", CV_WINDOW_AUTOSIZE);
+	// 	cvNamedWindow("hue", CV_WINDOW_AUTOSIZE);
+	// 	cvNamedWindow("saturation", CV_WINDOW_AUTOSIZE);
+	// 	cvNamedWindow("value", CV_WINDOW_AUTOSIZE);
+
+		cvCvtColor(image, hsv, CV_BGR2YUV);//将RGB色系转为HSV色系
+	// 	TrIplImageSetOne(hsv);
+		cvCvtColor(hsv, hue, CV_YUV2BGR);
+
+
+		ComShowImage("image", image);
+	// 	ComShowImage("hsv", hsv);
+
+	// 	cvSplit(hsv, hue, 0, 0, 0);//分离三个通道
+	// 	cvSplit(hsv, 0, saturation, 0, 0);
+	// 	cvSplit(hsv, 0, 0, value, 0);
+
+		ComShowImage("hue", hue);
+	// 	ComShowImage("saturation", saturation);
+	// 	ComShowImage("value", value);
+		cvWaitKey(0);
+		cvDestroyWindow("image");
+		cvDestroyWindow("hsv");
+		cvDestroyWindow("hue");
+		cvDestroyWindow("saturation");
+		cvDestroyWindow("value");
+	}
+	if (false) {
+		IplImage *src = cvLoadImage(filename, 1);//原图
+		IplImage *dst_gray = cvCreateImage(cvGetSize(src), src->depth, 1);//灰度图
+		IplImage *dst_image = cvCreateImage(cvGetSize(src), 32, src->nChannels);
+		IplImage *src_image_32 = cvCreateImage(cvGetSize(src), 32, src->nChannels);
+		//这两个图需要是32浮点位的，因为对原图进行归一化后得到的是浮点数
+		cvCvtColor(src, dst_gray, CV_BGR2GRAY);//得到灰度图
+		cvConvertScale(src, src_image_32, 1.0 / 255.0, 0);//将原图RGB归一化到0-1之间
+		cvCvtColor(src_image_32, dst_image, CV_BGR2HSV);//得到HSV图
+		ComShowImage("src", src);
+
+		ComShowImage("src_image_32", src_image_32);
+		cvWaitKey(0);
+
+	}
+}
+
+
+void DrawBox(IplImage* img, CvBox2D box, CvScalar color) {
+	CvPoint2D32f point[4];
+	int i;
+	for (i = 0; i < 4; i++) {
+		point[i].x = 0;
+		point[i].y = 0;
+	}
+	cvBoxPoints(box, point); //计算二维盒子顶点 
+	CvPoint pt[4];
+	for (i = 0; i < 4; i++) {
+		pt[i].x = (int)point[i].x;
+		pt[i].y = (int)point[i].y;
+	}
+	cvLine(img, pt[0], pt[1], color, 6, 8, 0);
+	cvLine(img, pt[1], pt[2], color, 6, 8, 0);
+	cvLine(img, pt[2], pt[3], color, 6, 8, 0);
+	cvLine(img, pt[3], pt[0], color, 6, 8, 0);
+}
+
+IplImage* pocContours(IplImage *src) {
+	CvMemStorage *store;
+	CvSeq *conts, *now;
+	IplImage *src1c;
+
+	return NULL;
+
+
+
+	store = cvCreateMemStorage(0);
+// 	cvErode(src, src, NULL, 3);
+	src1c = cvCreateImage(cvGetSize(src), 8, 1);
+	cvCvtColor(src, src1c, CV_BGR2GRAY);
+	cvFindContours(src1c, store, &conts, sizeof(CvContour),
+		CV_RETR_LIST, CV_CHAIN_APPROX_NONE, cvPoint(0, 0));
+	CvBox2D box2d;
+
+	for (now = conts; now; now = now->h_next) {
+		box2d = cvMinAreaRect2(now);
+		if (box2d.size.width > src->width / 100 && box2d.size.height > src->height / 100) {
+			DrawBox(src, box2d, CV_RGB(32, 131, 222));
+
+			// 		area = fabs(cvContourArea(nowcont));
+			// 		if (area > arearate) {
+			// 			havelarge = true;
+						// I am NOT sure, should add hull ?
+						//			hull = cvConvexHull2(nowcont, nowstore, CV_CLOCKWISE, 1 /* MUST BE 1*/);
+						//			cvDrawContours(dst, hull, CV_RGB(255, 255, 255), CV_RGB(255, 255, 255), 0, linewidth /*THICK_WIDTH*/);
+// 			cvDrawContours(src, now, CV_RGB(32, 231, 22), CV_RGB(221, 111, 55), 0, 7 /*THICK_WIDTH*/);
+		}
+// 		}
+// 	}
+// 	if (!havelarge) {
+// 		for (nowcont = conts; nowcont; nowcont = nowcont->h_next) {
+
+// 			if (len > lenrate) {
+// 				cvDrawContours(dst, nowcont, CV_RGB(255, 255, 255), CV_RGB(255, 255, 255), 0, linewidth /*THICK_WIDTH*/);
+// 			}
+ 		}
+
+
+	ComShowImage("src", src);
+	cvWaitKey(0);
+	return NULL;
 }

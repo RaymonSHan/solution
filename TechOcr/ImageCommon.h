@@ -5,10 +5,6 @@ std::cout << (b)->x << ", " << (b)->y << ", " << (b)->w << ", " << (b)->h << ", 
 	<< gb << std::endl; \
 delete[] gb; }
 
-#define  OUTPUTRECT(b, s)	{ char *gb; long gsize; ComUtf8ToGbk(s, strlen(s), gb, gsize); \
-std::cout << (b)->x << ", " << (b)->y << ", " << (b)->width << ", " << (b)->height << ", " \
-	<< gb << std::endl; \
-delete[] gb; }
 
 #include "targetver.h"
 
@@ -66,7 +62,6 @@ delete[] gb; }
 #define THIN_WIDTH				1
 #define DEFAULT_WIDTH			3
 #define THICK_WIDTH				15
-#define PPI						5000
 
 //#define TECHOCR_VERSION       "TechOcr V0.1"			// finish in Jun 11 '16
 //#define TECHOCR_VERSION       "TechOcr V0.2"			// finish in Jun 15 '16
@@ -224,7 +219,7 @@ IplImage* TrWarpPerspective(IplImage *img, int w, int h, CvMat *warp, CvMat *war
 // IplImage* TrWarpPerspective(IplImage *img, int w, int h, CvPoint2D32f *corner);
 
 // 将OpenCV的IplImage格式，转换为Leptonica的Pix格式。
-Pix* TrPixCreateFromIplImage(IplImage *img);
+Pix* TrCreatePixFromIplImage(IplImage *img);
 
 // 初始化Tesseract识别引擎.
 tesseract::TessBaseAPI* TechOcrInitTessAPI();
@@ -234,8 +229,7 @@ void TechOcrExitTessAPI(tesseract::TessBaseAPI *api);
 
 // 在图像中，找到可能包含识别字的矩形区域。
 // 返回值需要用boxaDestory()释放。
-// img：原IplImage图像，用于显示调试
-Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix, IplImage *img);
+Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix);
 
 // 按指定模式、指定编码，识别指定区域中的文字。
 // 返回值需要用delete[]释放。
@@ -245,14 +239,13 @@ char* TrTranslateInRect(tesseract::TessBaseAPI *api, tesseract::PageSegMode mode
 // 第二步主要工作，预识别特征字
 //
 // 根据标定边缘点，生成投影变换矩阵，并生成Pix。
-IplImage* TechOcrCreatePix(IplImage *img, int w, int h, CvPoint2D32f *corner, Pix *&pix, CvMat *warp);
+RESULT TechOcrCreatePix(IplImage *img, int w, int h, CvPoint2D32f *corner, Pix *&pix, CvMat *warp);
 
 // 对指定图像进行预处理，获取特征字及其位置坐标。
 // corner：来源于TechOcrGetFourCorner()
 // api：来源于TrInitTessAPI()
 // feature序列，需用cvRelease()释放
-// img：原IplImage图像，用于显示调试
-RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api,	CvSeq *feature, IplImage *img);
+RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api,	CvSeq *feature);
 
 // 第二步主要工作，定义模板
 //

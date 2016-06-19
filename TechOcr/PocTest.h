@@ -28,3 +28,7 @@ void pocPointToLineDist(void);
 void pocIsIntersect(void);
 
 void pocApproximateLine(char *filename);
+
+
+IplImage* pocImageProcess(char *filename);
+IplImage* pocContours(IplImage *src);
