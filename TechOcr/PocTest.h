@@ -32,3 +32,5 @@ void pocApproximateLine(char *filename);
 
 IplImage* pocImageProcess(char *filename);
 IplImage* pocContours(IplImage *src);
+
+void pocFilter(IplImage *src);

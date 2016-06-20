@@ -549,21 +549,30 @@ void pocCreateBusinessLicense(void) {
 	TechOcrFormatAddFeature(format, 853, 2445, 67, 71, "范");
 	TechOcrFormatAddFeature(format, 971, 2447, 59, 67, "围");
 
-	TechOcrFormatAddFeature(format, 1562, 3436, 71, 67, "登");
-	TechOcrFormatAddFeature(format, 1680, 3435, 71, 69, "记");
-	TechOcrFormatAddFeature(format, 1798, 3435, 74, 70, "机");
-	TechOcrFormatAddFeature(format, 1920, 3433, 67, 72, "关");
+// 	TechOcrFormatAddFeature(format, 1562, 3436, 71, 67, "登");
+// 	TechOcrFormatAddFeature(format, 1680, 3435, 71, 69, "记");
+// 	TechOcrFormatAddFeature(format, 1798, 3435, 74, 70, "机");
+// 	TechOcrFormatAddFeature(format, 1920, 3433, 67, 72, "关");
 
 	TechOcrFormatAddContent(format, 1785, 1469, 800, 55, "注册号");
 	TechOcrFormatAddContent(format, 1095, 1636, 1700, 66, "名称");
 	TechOcrFormatAddContent(format, 1095, 1758, 1700, 66, "类型");
-	TechOcrFormatAddContent(format, 1095, 1872, 1700, 66, "住所");
+	TechOcrFormatAddContent(format, 1095, 1822, 1700, 166, "住所");
 	TechOcrFormatAddContent(format, 1095, 1984, 1700, 66, "法定代表人");
 	TechOcrFormatAddContent(format, 1095, 2095, 1700, 66, "注册资本");
 	TechOcrFormatAddContent(format, 1095, 2212, 1700, 66, "成立日期");
 	TechOcrFormatAddContent(format, 1095, 2330, 1700, 66, "营业期限");
-	TechOcrFormatAddContent(format, 1095, 2440, 1700, 550, "经营范围", CHARTYPE_CONTENT_BLOCK);
-	// make it faster
+	TechOcrFormatAddContent(format, 1095, 2440, 1700, 660, "经营范围", CHARTYPE_CONTENT_BLOCK);
+
+// 	TechOcrFormatAddContent(format, 1785, 1439, 800, 115, "注册号");
+// 	TechOcrFormatAddContent(format, 1095, 1586, 1700, 166, "名称");
+// 	TechOcrFormatAddContent(format, 1095, 1708, 1700, 166, "类型");
+// 	TechOcrFormatAddContent(format, 1095, 1772, 1700, 166, "住所");
+// 	TechOcrFormatAddContent(format, 1095, 1934, 1700, 166, "法定代表人");
+// 	TechOcrFormatAddContent(format, 1095, 2045, 1700, 166, "注册资本");
+// 	TechOcrFormatAddContent(format, 1095, 2162, 1700, 166, "成立日期");
+// 	TechOcrFormatAddContent(format, 1095, 2280, 1700, 166, "营业期限");
+// 	TechOcrFormatAddContent(format, 1095, 2390, 1700, 750, "经营范围", CHARTYPE_CONTENT_BLOCK);
 
 	return;
 }
@@ -657,7 +666,7 @@ void pocMemoryDebug(void) {
 // #define LOADFILE "z:\\solution\\files\\p1.jpg"
 // #define LOADFILE "z:\\solution\\files\\p\\p19.jpg"
 // #define LOADFILE "z:\\solution\\files\\pn1.jpg"
-#define LOADFILE "z:\\solution\\files\\p\\p06.jpg"
+#define LOADFILE "z:\\solution\\files\\p\\p08.jpg"
 
 // #define LOADFILE "z:\\solution\\files\\cc\\c1.jpg"
 
@@ -670,10 +679,13 @@ void cvEqualizeHistColor(IplImage *src, IplImage *dst) {
 	cvSplit(src, blueImage, greenImage, redImage, NULL);
 
 	cvEqualizeHist(redImage, redImage);
-// 	cvEqualizeHist(greenImage, greenImage);
-// 	cvEqualizeHist(blueImage, blueImage);
+	cvEqualizeHist(greenImage, greenImage);
+	cvEqualizeHist(blueImage, blueImage);
 	//均衡化后的图像  
 	cvMerge(blueImage, greenImage, redImage, NULL, dst);
+	cvReleaseImage(&redImage);
+	cvReleaseImage(&greenImage);
+	cvReleaseImage(&blueImage);
 
 }
 
@@ -1220,6 +1232,35 @@ IplImage* pocImageProcess(char *filename) {
 	}
 }
 
+void ComBalanceImage(IplImage *src) {
+
+// 	TrIplImageChannelChoice(src, true, false, false, 255, 0, 0);				// remove red
+
+	IplImage *dst1 = cvCreateImage(cvGetSize(src), 8, 3);				// for 1/10 gassize
+	int gassize = (MIN(src->height, src->width) / 100) * 2 + 3;
+	cvSmooth(src, dst1, CV_BLUR, gassize, gassize, 0, 0);
+
+	IplImage *dst2 = cvCreateImage(cvGetSize(src), 8, 3);				// for 1/60 gassize
+	gassize = (MIN(src->height, src->width) / 360) * 2 + 3;
+	cvSmooth(src, dst2, CV_GAUSSIAN, gassize, gassize, 0, 0);
+
+	TrIplImageRgbToYuv(src);
+	TrIplImageChannelChoice(src, false, true, true, 0, 0, 0);				// remove color
+
+	TrIplImageRgbToYuv(dst1);
+	TrIplImageBeOne(dst1, src);
+
+// 	TrIplImageRgbToYuv(dst2);
+	TrIplImageYuvToRgb(src);
+	cvEqualizeHistColor(src, src);
+
+
+	ComShowImage("src", src);
+	cvWaitKey(0);
+
+	cvReleaseImage(&dst2);
+	cvReleaseImage(&dst1);
+}
 
 void DrawBox(IplImage* img, CvBox2D box, CvScalar color) {
 	CvPoint2D32f point[4];
@@ -1284,4 +1325,26 @@ IplImage* pocContours(IplImage *src) {
 	ComShowImage("src", src);
 	cvWaitKey(0);
 	return NULL;
+}
+
+
+
+
+void pocFilter(IplImage *src) {
+
+	IplImage *dst;
+
+	float low[9] = { 1.0 / 16, 2.0 / 16, 1.0 / 16, 2.0 / 16, 4.0 / 16, 2.0 / 16, 1.0 / 16, 2.0 / 16, 1.0 / 16 };//低通滤波核
+	float high[9] = { -1,-1,-1,-1,9,-1,-1,-1,-1 };//高通滤波核
+	CvMat km = cvMat(3, 3, CV_32FC1, high);  //构造单通道浮点矩阵，将图像IplImage结构转换为图像数组 
+	dst = cvCreateImage(cvGetSize(src), IPL_DEPTH_8U, 3);
+	cvFilter2D(src, src, &km, cvPoint(-1, -1));  //设参考点为核的中心
+// 	return dst;
+// 	ComShowImage("src", src);
+// 
+// 	ComShowImage("dst", dst);
+// 
+// 	cvWaitKey(0);
+// 	cvReleaseImage(&src);
+// 	cvReleaseImage(&dst);
 }

@@ -404,7 +404,7 @@ RESULT TrIplImageCmp(IplImage *src, IplImage *dst) {
 RESULT TrIplImageBeOne(IplImage *src, IplImage *dst) {
 	double rate;
 	PROCESSBEGINTWO;
-	rate = ixd->r - ixs->r + 127;
+	rate = ixd->r - ((double)ixs->r - 127)  * 1.2;
 	ixd->r = RangeChar(rate);
 	PPROCESSENDTWO;
 }

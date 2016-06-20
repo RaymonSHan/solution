@@ -1,6 +1,10 @@
 #include "ImageCommon.h"
 #include "MemoryCheck.h"
 
+IplImage *ImageFirst = 0;
+IplImage *ImageSecond = 0;
+IplImage *ImageThird = 0;
+
 double ComPointToLineDist(int x, int y, int x1, int y1, int x2, int y2) {
 	double a = (x2 - x1) * (y - y1) - (y2 - y1) * (x - x1);
 	double b = sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
@@ -182,12 +186,14 @@ void ComDrawLines(IplImage *img, CvSeq *lines, bool drawpoint, CvScalar *color, 
 	}
 }
 void ComDrawLineForFitLine(IplImage *img, float *line, CvScalar *color, int width) {
-	CvPoint p1 = cvPoint((int)(*(line + 2) + *(line + 0) * 1000), *(line + 3) + *(line + 1) * 1000);
-	CvPoint p2 = cvPoint((int)(*(line + 2) - *(line + 0) * 1000), *(line + 3) - *(line + 1) * 1000);
+	CvPoint p1 = cvPoint((int)(*(line + 2) + *(line + 0) * 3000), *(line + 3) + *(line + 1) * 3000);
+	CvPoint p2 = cvPoint((int)(*(line + 2) - *(line + 0) * 3000), *(line + 3) - *(line + 1) * 3000);
 	cvLine(img, p1, p2, *color, width);
 }
 void ComDrawLineForFitLine(IplImage *img, CvSeq *lines, CvScalar *color, int width) {
 	int		i;
+	if (!lines)
+		return;
 	for (i = 0; i < lines->total; i++)
 	{
 		float* line = (float*)cvGetSeqElem(lines, i);
@@ -532,6 +538,7 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 // 	 	cvRelease((void**)lines);
 
 	linesappr = TrAggregationLines(lines, storage, minsize / 30);
+	ComDrawLineForFitLine(ImageFirst, linesappr, &CV_RGB(235, 22, 43), 6);
 // 	cvRelease((void**)linesappr);
 	if (false) {			// should add condition for draw 
 		ComDrawLineForFitLine(img, linesappr);
@@ -558,6 +565,7 @@ RESULT TechOcrGetFourCorner(IplImage *img, CvPoint2D32f *corner, int loop) {
 			else {
 				for (i = 0; i < 4; i++) {
 					*corner = *(CvPoint2D32f*)cvGetSeqElem(conners, i);
+					cvCircle(ImageFirst, cvPointFrom32f(*corner), 30, CV_RGB(33, 232, 78), 5);
 					corner++;
 				}
 			}
@@ -792,7 +800,7 @@ void TechOcrExitTessAPI(tesseract::TessBaseAPI *api) {
 
 
 Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
-	Pixa *pixa;
+	Pixa *pixa = NULL;
 	Boxa *boxa, *boxc, *boxr;
 	Box  **box;
 	int i;
@@ -800,6 +808,7 @@ Boxa* TrChoiceBoxInBoxa(tesseract::TessBaseAPI *api, Pix *pix) {
 
 // 	api->SetImage(pix);
 // 	boxa = api->GetConnectedComponents(&pixa);
+
 	boxa = api->GetWords(&pixa);
 	NEW_PIXA
 	NEW_BOXA
@@ -886,6 +895,11 @@ RESULT TechOcrCreatePix(IplImage *img, int w, int h, CvPoint2D32f *corner, Pix *
 		dst = img;
 	}
 	pix = TrCreatePixFromIplImage(dst);
+
+	if (!ImageSecond) {
+		ImageSecond = cvCloneImage(dst);
+		NEW_IPLIMAGE
+	}
 	if (corner) {
 		cvReleaseImage(&dst);
 		DEL_IPLIMAGE
@@ -906,6 +920,7 @@ RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api, CvSeq *featu
 	if (!boxa)
 		return RESULT_ERR;
 
+	ComDrawBoxs(ImageSecond, boxa, &CV_RGB(167, 110, 21), 5);
 	box = boxa->box;
 	for (i = 0; i < boxa->n; i++) {
 		str = TrTranslateInRect(api, tesseract::PSM_SINGLE_CHAR, ENCODE_UTF8, *box);
@@ -919,6 +934,13 @@ RESULT TechOcrGetFeatureChar(Pix *pix, tesseract::TessBaseAPI *api, CvSeq *featu
 	}
 	boxaDestroy(&boxa);
 	DEL_BOXA
+
+
+
+// 		ComShowImage("1", ImageFirst);
+// 	ComShowImage("2", ImageSecond);
+// 	cvWaitKey(0);
+
 	return RESULT_OK;
 }
 CvSeq* TrGetFormatByName(char* name) {
@@ -1090,6 +1112,8 @@ void TrGetCornerInMatch(CvSeq *feature, CvSeq *format, int maxfea, int maxfor, C
 	CvRect *rect;
 	int cornum[4];
 
+	CvPoint2D32f ctmp[4], dtmp[4];				// for temp Jun. 60 '16
+
 	if (!format) {
 		csrc = cdst = NULL;
 		return;
@@ -1102,6 +1126,7 @@ void TrGetCornerInMatch(CvSeq *feature, CvSeq *format, int maxfea, int maxfor, C
 		feachar = (CharFound*)cvGetSeqElem(feature, j);
 		if (feachar->chartype & CHARTYPE_MATCH) {
 			rect = &feachar->rect;
+			cvRectangleR(ImageSecond, *rect, CV_RGB(23, 76, 170), 9);
 			if (rect->x + rect->y < tl) {
 				tl = rect->x + rect->y;
 				cornum[0] = j;
@@ -1121,21 +1146,38 @@ void TrGetCornerInMatch(CvSeq *feature, CvSeq *format, int maxfea, int maxfor, C
 		}
 	}
 
+
 	for (j = 0; j < 4; j++) {
 		feachar = (CharFound*)cvGetSeqElem(feature, cornum[j]);
 		forchar = (CharFound*)cvGetSeqElem(format, feachar->chartype & (~CHARTYPE_MATCH));
-		(csrc + j)->x = (float)feachar->rect.x;
-		(csrc + j)->y = (float)feachar->rect.y;
-		(cdst + j)->x = (float)forchar->rect.x;
-		(cdst + j)->y = (float)forchar->rect.y;
+		ctmp[j].x = (float)feachar->rect.x;
+		ctmp[j].y = (float)feachar->rect.y;
+		dtmp[j].x = (float)forchar->rect.x;
+		dtmp[j].y = (float)forchar->rect.y;
 		if (j == 1 || j == 2) {
-			(csrc + j)->x += (float)feachar->rect.width;
-			(cdst + j)->x += (float)forchar->rect.width;
+			ctmp[j].x += (float)feachar->rect.width;
+			dtmp[j].x += (float)forchar->rect.width;
 		}
 		if (j == 2 || j == 3) {
-			(csrc + j)->y += (float)feachar->rect.height;
-			(cdst + j)->y += (float)forchar->rect.height;
+			ctmp[j].y += (float)feachar->rect.height;
+			dtmp[j].y += (float)forchar->rect.height;
 		}
+		(csrc + j)->x = ctmp[j].x;
+		(csrc + j)->y = ctmp[j].y;
+		(cdst + j)->x = dtmp[j].x;
+		(cdst + j)->y = dtmp[j].y;
+		cvCircle(ImageSecond, cvPointFrom32f(ctmp[j]), 30, CV_RGB(222, 69, 55), 10);
+	}
+	(csrc + 0)->x = (csrc + 3)->x = MIN(ctmp[0].x, ctmp[3].x);
+	(csrc + 0)->y = (csrc + 1)->y = MIN(ctmp[0].y, ctmp[1].y);
+	(cdst + 0)->x = (cdst + 3)->x = MIN(dtmp[0].x, dtmp[3].x);
+	(cdst + 0)->y = (cdst + 1)->y = MIN(dtmp[0].y, dtmp[1].y);
+	(csrc + 1)->x = (csrc + 2)->x = MAX(ctmp[1].x, ctmp[2].x);
+	(cdst + 1)->x = (cdst + 2)->x = MAX(dtmp[1].x, dtmp[2].x);
+	(csrc + 2)->y = (csrc + 3)->y = MAX(ctmp[2].y, ctmp[3].y);
+	(cdst + 2)->y = (cdst + 3)->y = MAX(dtmp[2].y, dtmp[3].y);
+	for (j = 0; j < 4; j++) {
+		cvCircle(ImageSecond, cvPointFrom32f(csrc[j]), 45, CV_RGB(33, 69, 244), 10);
 	}
 }
 #define MIN_CONFIRM				4
@@ -1178,7 +1220,10 @@ RESULT TechOcrFormatMostMatch(CvSeq *feature, CvSeq *&bestformat, int &maxmatch,
 
 #define ENLAGRE_X     16
 #define ENLARGE_Y     24
+// #define ENLARGE_Y     70
+
 #define MIN_WORD_SIZE 30
+
 bool ComBoxInRect(Box *box, CvRect *rect) {
 	if (box->x + box->w > rect->x + MIN_WORD_SIZE &&
 		box->x < rect->x + rect->width - MIN_WORD_SIZE &&			// attention the condition
@@ -1255,11 +1300,20 @@ RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvS
 	pix = TrCreatePixFromIplImage(rotated);
 	api = TechOcrInitTessAPI();
 	api->SetImage(pix);
+	pixa = NULL;
 	boxa = api->GetWords(&pixa);
 	NEW_PIXA
 	NEW_BOXA
 
-// ComDrawBoxs(rotated, boxa, &CV_RGB(100,67,91), 10);
+	if (!pixa) {
+		return RESULT_ERR;
+	}
+	if (ImageSecond && !ImageThird) {
+		ImageThird = cvCloneImage(rotated);
+		NEW_IPLIMAGE
+	}
+
+	ComDrawBoxs(ImageThird, boxa, &CV_RGB(100,67,91), 10);
 
 	tesseract::PageSegMode mode;
 	for (i = 0; i < bestformat->total; i++) {
@@ -1272,6 +1326,9 @@ RESULT TechOcrDetectWordsInFormat(IplImage *img, CvMat *warp1, CvMat *warp2, CvS
 		ComEnlargeRect(&(found->rect), rectenlarge, ENLAGRE_X, ENLARGE_Y);
  		rect = ComDetectWord(pixa, &rectenlarge);
 // 		ComEnlargeRect(&rect, rect, ENLAGRE_X, ENLARGE_Y);
+
+		cvRectangleR(ImageThird, found->rect, CV_RGB(43, 221, 87), 5);
+		cvRectangleR(ImageThird, rect, CV_RGB(43, 23, 187), 5);
 
 		if (found->chartype == CHARTYPE_CONTENT_BLOCK) {
 			mode = tesseract::PSM_SINGLE_BLOCK;
@@ -1364,6 +1421,10 @@ RESULT TechOcrProcessPage(IplImage *img, std::string &output) {
 	return RESULT_OK;
 }
 
+void ComBalanceImage(IplImage *src);
+void pocFilter(IplImage *src);
+
+
 char* TechOcr(char *format, char *filename) {
 	char *output;
 	RESULT result= RESULT_ERR;
@@ -1379,6 +1440,9 @@ char* TechOcr(char *format, char *filename) {
 	int i;
 
 	src = cvLoadImage(filename, 1);
+// 	pocFilter(src);
+// 	ComBalanceImage(src);
+
 	NEW_IPLIMAGE
 	if (!src)
 		return NULL;
@@ -1399,6 +1463,9 @@ char* TechOcr(char *format, char *filename) {
 	NEW_IPLIMAGE
 	for (;;) {
 		api = TechOcrInitTessAPI();
+
+		ImageFirst = cvCloneImage(src);
+		NEW_IPLIMAGE
 		result = TechOcrGetFourCorner(dst, corner, 1);
 		if (result == RESULT_ERR) {
 			pcorner = NULL;
@@ -1415,10 +1482,14 @@ char* TechOcr(char *format, char *filename) {
 		result = TechOcrGetFeatureChar(pix, api, feature);
 		TechOcrFormatMostMatch(feature, bestformat, match, warp2);
 
+		break;			// no rotate		// Jun 20 '16
+
 		if ((bestformat && match >= MIN_CONFIRM) || rotateloop >= 4) {
 			// record now bestformat
 			break;
 		}
+		cvReleaseImage(&ImageFirst);
+		DEL_IPLIMAGE
 		cvReleaseImage(&dst);
 		DEL_IPLIMAGE
 		pixDestroy(&pix);
@@ -1463,6 +1534,32 @@ char* TechOcr(char *format, char *filename) {
 	DEL_IPLIMAGE
 	cvReleaseImage(&src);
 	DEL_IPLIMAGE
+
+	if (ImageFirst)
+		ComShowImage("First", ImageFirst);
+	if (ImageSecond)
+		ComShowImage("Second", ImageSecond);
+	if (ImageThird)
+		ComShowImage("Third", ImageThird);
+	cvReleaseImage(&ImageFirst);
+	DEL_IPLIMAGE
+	cvReleaseImage(&ImageSecond);
+	DEL_IPLIMAGE
+	cvReleaseImage(&ImageThird);
+	DEL_IPLIMAGE
+
+
+
+	char *gb2312 = 0;
+	long gsize;
+	if (output) {
+		ComUtf8ToGbk(output, strlen(output), gb2312, gsize);
+	}
+	printf("%s\r\n", gb2312);
+	if (gb2312)
+		delete[] gb2312;
+
+	cvWaitKey(0);
 	return output;
 }
 
