@@ -203,6 +203,7 @@
   <ItemGroup>
     <ClCompile Include="ImageCommon.cpp" />
     <ClCompile Include="ImageProcess.cpp" />
+    <ClCompile Include="ImageRetinex.cpp" />
     <ClCompile Include="MemoryCheck.cpp" />
     <ClCompile Include="PocTest.cpp" />
     <ClCompile Include="TechOcrDll.cpp">
@@ -226,6 +227,7 @@
   <ItemGroup>
     <ClInclude Include="ImageCommon.h" />
     <ClInclude Include="ImageProcess.h" />
+    <ClInclude Include="ImageRetinex.h" />
     <ClInclude Include="MemoryCheck.h" />
     <ClInclude Include="PocTest.h" />
     <ClInclude Include="TechOcrDll.h" />

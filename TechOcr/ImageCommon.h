@@ -294,7 +294,6 @@ RESULT TechOcrOutput(CvSeq *content, CvSeq *bestformat, std::string &output);
 // 在未能识别出版式时,识别页面上所有字符
 RESULT TechOcrProcessPage(IplImage *img, std::string &output);
 
-
 // 以下为DLL输出函数，供外部调用。
 //
 // 主函数，识别特定文件，返回格式化字符。

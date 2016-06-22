@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="ImageCommon.cpp">
+      <Filter>FirstVersion</Filter>
+    </ClCompile>
+    <ClCompile Include="ImageProcess.cpp">
+      <Filter>FirstVersion</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryCheck.cpp">
+      <Filter>FirstVersion</Filter>
+    </ClCompile>
+    <ClCompile Include="PocTest.cpp">
+      <Filter>FirstVersion</Filter>
+    </ClCompile>
+    <ClCompile Include="TechOcrDll.cpp">
+      <Filter>FirstVersion</Filter>
+    </ClCompile>
+    <ClCompile Include="ImageRetinex.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ImageCommon.h">
+      <Filter>FirstVersion</Filter>
+    </ClInclude>
+    <ClInclude Include="ImageProcess.h">
+      <Filter>FirstVersion</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryCheck.h">
+      <Filter>FirstVersion</Filter>
+    </ClInclude>
+    <ClInclude Include="PocTest.h">
+      <Filter>FirstVersion</Filter>
+    </ClInclude>
+    <ClInclude Include="TechOcrDll.h">
+      <Filter>FirstVersion</Filter>
+    </ClInclude>
+    <ClInclude Include="ImageRetinex.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="TechOcrDll.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="FirstVersion">
+      <UniqueIdentifier>{498db949-9227-40a1-9ebd-56a2168d4861}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

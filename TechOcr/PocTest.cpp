@@ -662,11 +662,6 @@ void pocMemoryDebug(void) {
 }
 
 
-// #define LOADFILE "z:\\solution\\files\\cl.jpg"
-// #define LOADFILE "z:\\solution\\files\\p1.jpg"
-// #define LOADFILE "z:\\solution\\files\\p\\p19.jpg"
-// #define LOADFILE "z:\\solution\\files\\pn1.jpg"
-#define LOADFILE "z:\\solution\\files\\p\\p08.jpg"
 
 // #define LOADFILE "z:\\solution\\files\\cc\\c1.jpg"
 
@@ -718,9 +713,6 @@ IplImage* pocImageProcess(char *filename) {
 // 		cvWaitKey(0);
 // 	}
 
-#ifdef _DEBUG
-	filename = LOADFILE;
-#endif _DEBUG
 	if (false) {					// for get same color
 		IplImage *src = cvLoadImage(filename);
 // 		cvSetImageROI(src, cvRect(319, 155, 36, 32));			// for p07
