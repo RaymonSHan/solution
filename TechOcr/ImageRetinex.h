@@ -15,16 +15,18 @@
 using namespace cv;
 
 
-void ComMatInit(Mat &src, uchar val, int channel = -1);
-
 
 // 针对指定图像,按照X，Y方向的步长，对指定通道求区域中的最亮值。
 // channel为负数时，求所有通道。
-void TrGetMaxInMat(Mat &src, Mat &dst, int channel = -1);
+// void TrGetMaxInMat(Mat &src, Mat &dst, int channel = -1);
 void TrGetLightInMat(Mat &src, Mat &dst);
 
 void TrMatDiv(Mat &src, Mat &dst, int channel = -1);
-void TrMatDivOneChannel(Mat &src, Mat &dst, int channel = -1);
+void TrMatDivOneChannel(Mat &src, Mat &dst, int delta, int channel = -1);
+
+#define RETINEX_SIZE		10
+#define RETINEX_DELTA		120
+void TrRetinexBalance(Mat &src, int size = RETINEX_SIZE, int delta = RETINEX_DELTA);
 
 
 void pocRetinex(char *filename);

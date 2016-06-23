@@ -36,15 +36,17 @@
 	for (y_ = 0; y_ < src.rows; y_++) {							\
 		for (x_ = 0; x_ < src.cols; x_++) {						\
 			srcnow = &src.at<Vec3b>(y_, x_);
+#define INIT_CHANNEL_ADD										\
+	for (chnow = cstart_; chnow < cend_; chnow++) {
 #define INIT_ONEMAT_CHANNEL										\
 	INIT_ONEMAT;												\
-	for (chnow = cstart_; chnow < cend_; chnow++) {
+	INIT_CHANNEL_ADD
 #define INIT_TWOMAT												\
 	INIT_ONEMAT													\
 	dstnow = &dst.at<Vec3b>(y_ / ystep_, x_ / xstep_);
 #define INIT_TWOMAT_CHANNEL										\
 	INIT_TWOMAT;												\
-	for (chnow = cstart_; chnow < cend_; chnow++) {
+	INIT_CHANNEL_ADD
 
 #define EXIT_ONEMAT												\
 		}														\
@@ -57,14 +59,6 @@
 #define EXIT_TWOMAT_CHANNEL										\
 	EXIT_ONEMAT_CHANNEL
 
-void ComMatInit(Mat &src, uchar val, int channel) {
-	DECALRE_ONEMAT_CHANNEL;
-
-	INIT_ONEMAT_CHANNEL;
-	(*srcnow)[chnow] = val;
-	EXIT_ONEMAT_CHANNEL;
-}
-
 void TrGetMaxInMat(Mat &src, Mat &dst, int channel) {
 	DECLARE_TWOMAT_CHANNEL;
 	
@@ -76,13 +70,12 @@ void TrGetMaxInMat(Mat &src, Mat &dst, int channel) {
 	EXIT_TWOMAT_CHANNEL;
 }
 
-
 void TrGetLightInMat(Mat &src, Mat &dst) {
 	DECLARE_TWOMAT;
 	double lightd;
 	uchar lightc;
 
-	ComMatInit(dst, 0);
+	dst.setTo(Scalar(0, 0, 0));
 	INIT_TWOMAT;
 	lightd = 0.299 * (*srcnow)[2] + 0.587 * (*srcnow)[1] + 0.114 * (*srcnow)[0];
 	lightc = RangeChar(lightd);
@@ -100,14 +93,15 @@ void TrMatDiv(Mat &src, Mat &dst, int channel) {
 	EXIT_TWOMAT_CHANNEL;
 }
 
-int lightexp = 1000;
-
-void TrMatDivOneChannel(Mat &src, Mat &dst, int channel) {
+void TrMatDivOneChannel(Mat &src, Mat &dst, int delta, int channel) {
 	DECLARE_TWOMAT_CHANNEL;
 	uchar now;
-//	double logs, logd, logr;
+	double dstdouble, dstresult;
 
-	INIT_TWOMAT_CHANNEL;
+	INIT_TWOMAT;
+	dstdouble = (double)(*dstnow)[0];
+	dstresult = dstdouble / 270 * (1 + dstdouble / 500);
+	INIT_CHANNEL_ADD;
 // 	logs = log((double)(*srcnow)[chnow]);
 // 	logd = log((double)(*dstnow)[0]);
 // //  	logr = logs - logd * (lightexp / 5000 + 5.4) + log((double)180);
@@ -116,9 +110,22 @@ void TrMatDivOneChannel(Mat &src, Mat &dst, int channel) {
 // 	now = RangeChar(exp(logr));
 // 	now = RangeChar((double)((*srcnow)[chnow]) / (*dstnow)[0] * 180);
 
-	now = RangeChar((double)((*srcnow)[chnow]) / (*dstnow)[0] * 270 / ( 1 + (double)(*dstnow)[0] / 500));
+	now = RangeChar((double)((*srcnow)[chnow]) / dstresult);
 	(*srcnow)[chnow] = now;
 	EXIT_TWOMAT_CHANNEL;
+}
+
+void TrRetinexBalance(Mat &src, int size, int delta) {
+	int dstcols, dstrows;
+	Mat smalldiv;
+	Mat dst;
+
+	dstcols = dstrows = size;
+	smalldiv.create(dstrows, dstcols, CV_8UC3);
+	dst.create(src.size(), src.type());
+	TrGetLightInMat(src, smalldiv);
+	resize(smalldiv, dst, src.size(), INTER_LANCZOS4);
+	TrMatDivOneChannel(src, dst, delta);
 }
 
 void ComImShow(const string& name, Mat &src) {
@@ -145,48 +152,26 @@ void ComImShow(const string& name, Mat &src) {
 	}
 }
 
-#define RETINEX_SIZE		5
-void OnStepChange(int, void *image) {
+
+int GlobalStep = 1000;
+
+void OnStepChange(int step, void *image) {
 	double duration;
 	duration = static_cast<double>(cv::getCPUTickCount());
-	Mat smalldiv;
 	Mat src = ((Mat*)image)->clone();
-	Mat dst;
 	std::ostringstream str;
 
-	int dstcols, dstrows;
-	if (src.cols > src.cols) {
-		dstcols = RETINEX_SIZE;
-		dstrows = (double)src.rows / src.cols * RETINEX_SIZE;
-	}
-	else {
-		dstcols = (double)src.rows / src.cols * RETINEX_SIZE;
-		dstrows = RETINEX_SIZE;
-	}
+	TrRetinexBalance(src);
 
-	smalldiv.create(dstrows, dstcols, CV_8UC3);
 // 	smalldiv.create(src.size(), src.type());
 
-	dst.create(src.size(), src.type());
 // 	INTER_NEAREST INTER_LINEAR INTER_CUBIC INTER_AREA INTER_LANCZOS4
-	if (false) {
-		TrGetLightInMat(src, smalldiv);
-		resize(src, dst, src.size(), INTER_LANCZOS4);
-// 		GaussianBlur(dst, dst, Size(29, 29), 0, 0);
-		TrMatDivOneChannel(src, dst);
-	}
-	if (true) {
-		TrGetLightInMat(src, smalldiv);
-		resize(smalldiv, dst, src.size(), INTER_LANCZOS4);
-		// 		GaussianBlur(dst, dst, Size(29, 29), 0, 0);
-		TrMatDivOneChannel(src, dst);
-	}
 
 	duration = static_cast<double>(cv::getCPUTickCount()) - duration;
 	duration /= cv::getTickFrequency(); // the elapsed time in ms
  	str << src.rows << " * " << src.cols << "   ";
  	str << duration << "ms";
-	putText(src, str.str(), Point(0, src.rows - 30), CV_FONT_HERSHEY_TRIPLEX, dst.rows / 600, Scalar(23, 123, 223), 15, 20);
+	putText(src, str.str(), Point(0, src.rows - 30), CV_FONT_HERSHEY_TRIPLEX, src.rows / 600, Scalar(23, 123, 223), src.rows / 300, src.rows / 300);
 	ComImShow("dst", src);
 	src.release();
 // 	waitKey(1);
@@ -201,39 +186,11 @@ void pocRetinex(char *filename)
 	namedWindow("dst");
 	ComImShow("src", image);
 
-
-	createTrackbar("STEP", "dst", &lightexp, 2000, OnStepChange, &image);
-	OnStepChange(lightexp, &image); //轨迹条回调函数  
-
-
-// 	if (false) {
-// 		TrGetMaxInMat(image, smalldiv);
-// 		resize(smalldiv, dst, image.size());
-// // 		medianBlur(dst, dst, 19);
-// 		TrMatDiv(image, dst);
-// 	}
-// 	if (true) {
-// 		TrGetLightInMat(image, smalldiv);
-// 		resize(smalldiv, dst, image.size(), CV_INTER_CUBIC);
-// 		GaussianBlur(dst, dst, Size(29, 29), 0, 0);
-// 		TrMatDivOneChannel(image, dst);
-// 	}
-
-
-
-// 	std::cout << duration << std::endl;
-
+	createTrackbar("STEP", "dst", &GlobalStep, 2000, OnStepChange, &image);
+	OnStepChange(GlobalStep, &image);
 
 	waitKey(0);
-// 	imwrite("c:\\t.jpg", image);
-// 	imwrite("c:\\d.jpg", dst);
 	destroyAllWindows();
-
-// 	IplImage *img = cvLoadImage(filename);
-// 	Retinex(img, 200);
-// 	ComShowImage("img", img);
-// 	cvSaveImage("c:\\t.jpg", img);
-// 	cvWaitKey(0);
 
 }
 
