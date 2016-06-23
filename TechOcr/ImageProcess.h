@@ -17,6 +17,8 @@
 #define COLOR_RSHIFT (8 - COLOR_BIT)
 #define COLOR_RANGE (1 << COLOR_BIT)
 
+char RangeChar(double num);
+
 
 RESULT TrIplImageChannelChoiceMin(IplImage *src);
 
