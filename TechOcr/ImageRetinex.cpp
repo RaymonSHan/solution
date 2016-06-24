@@ -5,10 +5,10 @@
 
 #define		CHANNEL			3
 
-#define DECALRE_ONEMAT											\
+#define DECALRE_ONEMAT(type)									\
 	int y_, x_;													\
-	Vec3b *srcnow;
-#define DECALRE_CHANNEL_ADD										\
+	type *srcnow;
+#define DECALRE_CHANNEL_ADD(type)								\
 	int chnow;													\
 	int cstart_, cend_;											\
 	if (channel < 0) {											\
@@ -19,89 +19,89 @@
 		cstart_ = channel;										\
 		cend_ = channel + 1;									\
 	}
-#define DECALRE_ONEMAT_CHANNEL									\
-	DECALRE_ONEMAT;												\
-	DECALRE_CHANNEL_ADD;
-#define DECLARE_TWOMAT											\
-	DECALRE_ONEMAT;												\
+#define DECALRE_ONEMAT_CHANNEL(type)							\
+	DECALRE_ONEMAT(type);										\
+	DECALRE_CHANNEL_ADD(type);
+#define DECLARE_TWOMAT(type)									\
+	DECALRE_ONEMAT(type);										\
 	double xstep_, ystep_;										\
-	xstep_ = (src.cols - 1)/ dst.cols + 1;						\
-	ystep_ = (src.rows - 1)/ dst.rows + 1;						\
+	xstep_ = (src.size[1] - 1)/ dst.size[1] + 1;						\
+	ystep_ = (src.size[0] - 1)/ dst.size[0] + 1;						\
 	Vec3b *dstnow;
-#define DECLARE_TWOMAT_CHANNEL									\
-	DECLARE_TWOMAT;												\
-	DECALRE_CHANNEL_ADD;
+#define DECLARE_TWOMAT_CHANNEL(type)							\
+	DECLARE_TWOMAT(type);										\
+	DECALRE_CHANNEL_ADD(type);
 
-#define INIT_ONEMAT												\
-	for (y_ = 0; y_ < src.rows; y_++) {							\
-		for (x_ = 0; x_ < src.cols; x_++) {						\
-			srcnow = &src.at<Vec3b>(y_, x_);
-#define INIT_CHANNEL_ADD										\
+#define INIT_ONEMAT(type)										\
+	for (y_ = 0; y_ < src.size[0]; y_++) {							\
+		for (x_ = 0; x_ < src.size[1]; x_++) {						\
+			srcnow = &src.at<type>(y_, x_);
+#define INIT_CHANNEL_ADD(type)									\
 	for (chnow = cstart_; chnow < cend_; chnow++) {
-#define INIT_ONEMAT_CHANNEL										\
-	INIT_ONEMAT;												\
-	INIT_CHANNEL_ADD
-#define INIT_TWOMAT												\
-	INIT_ONEMAT													\
-	dstnow = &dst.at<Vec3b>(y_ / ystep_, x_ / xstep_);
-#define INIT_TWOMAT_CHANNEL										\
-	INIT_TWOMAT;												\
-	INIT_CHANNEL_ADD
+#define INIT_ONEMAT_CHANNEL(type)								\
+	INIT_ONEMAT(type);											\
+	INIT_CHANNEL_ADD(type);
+#define INIT_TWOMAT(type)										\
+	INIT_ONEMAT(type)											\
+	dstnow = &dst.at<type>(y_ / ystep_, x_ / xstep_);
+#define INIT_TWOMAT_CHANNEL(type)								\
+	INIT_TWOMAT(type);											\
+	INIT_CHANNEL_ADD(type)
 
-#define EXIT_ONEMAT												\
+#define EXIT_ONEMAT(type)										\
 		}														\
 	}
-#define EXIT_ONEMAT_CHANNEL										\
+#define EXIT_ONEMAT_CHANNEL(type)								\
 	}															\
-	EXIT_ONEMAT;
-#define EXIT_TWOMAT												\
-	EXIT_ONEMAT
-#define EXIT_TWOMAT_CHANNEL										\
-	EXIT_ONEMAT_CHANNEL
+	EXIT_ONEMAT(type);
+#define EXIT_TWOMAT(type)										\
+	EXIT_ONEMAT(type);
+#define EXIT_TWOMAT_CHANNEL(type)								\
+	EXIT_ONEMAT_CHANNEL(type);
 
 void TrGetMaxInMat(Mat &src, Mat &dst, int channel) {
-	DECLARE_TWOMAT_CHANNEL;
+	DECLARE_TWOMAT_CHANNEL(Vec3b);
 	
 	dst.setTo(Scalar(0, 0, 0));
-	INIT_TWOMAT_CHANNEL;
+	INIT_TWOMAT_CHANNEL(Vec3b);
 	if ((*srcnow)[chnow] > (*dstnow)[chnow]) {
 		(*dstnow)[chnow] = (*srcnow)[chnow];
 	}
-	EXIT_TWOMAT_CHANNEL;
+	EXIT_TWOMAT_CHANNEL(Vec3b);
 }
 
 void TrGetLightInMat(Mat &src, Mat &dst) {
-	DECLARE_TWOMAT;
+	DECLARE_TWOMAT(Vec3b);
 	double lightd;
 	uchar lightc;
 
 	dst.setTo(Scalar(0, 0, 0));
-	INIT_TWOMAT;
+	INIT_TWOMAT(Vec3b);
 	lightd = 0.299 * (*srcnow)[2] + 0.587 * (*srcnow)[1] + 0.114 * (*srcnow)[0];
 	lightc = RangeChar(lightd);
 	if (lightc > (*dstnow)[0]) {
 		(*dstnow)[0] = (*dstnow)[1] = (*dstnow)[2] = lightc;
 	}
-	EXIT_TWOMAT;
+	EXIT_TWOMAT(Vec3b);
 }
 
 void TrMatDiv(Mat &src, Mat &dst, int channel) {
-	DECLARE_TWOMAT_CHANNEL;
+	DECLARE_TWOMAT_CHANNEL(Vec3b);
 
-	INIT_TWOMAT_CHANNEL;
+	INIT_TWOMAT_CHANNEL(Vec3b);
 	(*srcnow)[chnow] = (uchar)((double)(*srcnow)[chnow] / (*dstnow)[chnow] * 255);
-	EXIT_TWOMAT_CHANNEL;
+	EXIT_TWOMAT_CHANNEL(Vec3b);
 }
 
 void TrMatDivOneChannel(Mat &src, Mat &dst, int delta, int channel) {
-	DECLARE_TWOMAT_CHANNEL;
+	DECLARE_TWOMAT_CHANNEL(Vec3b);
 	uchar now;
 	double dstdouble, dstresult;
 
-	INIT_TWOMAT;
+	INIT_TWOMAT(Vec3b);
 	dstdouble = (double)(*dstnow)[0];
-	dstresult = dstdouble / 270 * (1 + dstdouble / 500);
-	INIT_CHANNEL_ADD;
+	dstresult = dstdouble / 270 * (1 + dstdouble / delta);
+	INIT_CHANNEL_ADD(Vec3b);
 // 	logs = log((double)(*srcnow)[chnow]);
 // 	logd = log((double)(*dstnow)[0]);
 // //  	logr = logs - logd * (lightexp / 5000 + 5.4) + log((double)180);
@@ -112,7 +112,7 @@ void TrMatDivOneChannel(Mat &src, Mat &dst, int delta, int channel) {
 
 	now = RangeChar((double)((*srcnow)[chnow]) / dstresult);
 	(*srcnow)[chnow] = now;
-	EXIT_TWOMAT_CHANNEL;
+	EXIT_TWOMAT_CHANNEL(Vec3b);
 }
 
 void TrRetinexBalance(Mat &src, int size, int delta) {
@@ -152,6 +152,48 @@ void ComImShow(const string& name, Mat &src) {
 	}
 }
 
+Mat pocHist(Mat &src, int size) {
+	DECALRE_ONEMAT(Vec3b);
+	int histrange = (255 / size) + 1;
+	int dimsize[] = { size, size, size };
+	int *histnow;
+	Mat hist;
+
+	hist.create(3, dimsize, CV_32SC1);
+	hist.setTo(Scalar(0, 0, 0));
+	INIT_ONEMAT(Vec3b);
+	histnow = &hist.at<int>((*srcnow)[2] / histrange, (*srcnow)[1] / histrange, (*srcnow)[0] / histrange);
+	(*histnow)++;
+	EXIT_ONEMAT(Vec3b);
+	return hist;
+}
+Mat pocIntegralHist(Mat &hist, int size, int range) {
+	int sx, sy, sz;
+	int rx, ry, rz;
+	int *histnow;
+	int *internow;
+	int dimsize[] = { size, size, size };
+	Mat inter;
+	inter.create(3, dimsize, CV_32SC1);
+	inter.setTo(Scalar(0, 0, 0));
+
+	for (sz = 0; sz < size; sz++) {
+		for (sy = 0; sy < size; sy++) {
+			for (sx = 0; sx < size; sx++) {
+				histnow = &hist.at<int>(sx, sy, sz);
+				for (rz = MAX(0, sz - range); rz < MIN(size, sz + range); rz++) {
+					for (ry = MAX(0, sz - range); ry < MIN(size, ry + range); rz++) {
+						for (rx = MAX(0, rx - range); rx < MIN(size, rx + range); rz++) {
+							internow = &inter.at<int>(rx, ry, rz);
+							*internow += *histnow;
+						}
+					}
+				}
+			}
+		}
+	}
+	return inter;
+}
 
 int GlobalStep = 1000;
 
@@ -159,13 +201,13 @@ void OnStepChange(int step, void *image) {
 	double duration;
 	duration = static_cast<double>(cv::getCPUTickCount());
 	Mat src = ((Mat*)image)->clone();
+	Mat hist;
 	std::ostringstream str;
 
-	TrRetinexBalance(src);
+// 	if (false) {
+		TrRetinexBalance(src);			// Jun. 23 '16
+// 	}
 
-// 	smalldiv.create(src.size(), src.type());
-
-// 	INTER_NEAREST INTER_LINEAR INTER_CUBIC INTER_AREA INTER_LANCZOS4
 
 	duration = static_cast<double>(cv::getCPUTickCount()) - duration;
 	duration /= cv::getTickFrequency(); // the elapsed time in ms

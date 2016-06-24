@@ -24,10 +24,12 @@ void TrGetLightInMat(Mat &src, Mat &dst);
 void TrMatDiv(Mat &src, Mat &dst, int channel = -1);
 void TrMatDivOneChannel(Mat &src, Mat &dst, int delta, int channel = -1);
 
-#define RETINEX_SIZE		10
+#define RETINEX_SIZE		6
 #define RETINEX_DELTA		120
 void TrRetinexBalance(Mat &src, int size = RETINEX_SIZE, int delta = RETINEX_DELTA);
 
+Mat pocHist(Mat &src, int size);
+Mat pocIntegralHist(Mat &src, int size, int range);
 
 void pocRetinex(char *filename);
 

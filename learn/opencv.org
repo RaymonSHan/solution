@@ -1,3 +1,4 @@
 
 http://blog.csdn.net/thefutureisour/article/details/7599537 隐藏console窗口
 http://blog.sina.com.cn/s/blog_6bbd2dd101012dbh.html 显示汉字
+http://blog.csdn.net/qianqing13579/article/details/45318279 mat中的属性
