@@ -11,13 +11,21 @@ typedef struct TrGaryPoint {
 	uchar g;
 }TrGaryPoint, *pTrGaryPoint;
 
-char RangeChar(double num) {
+uchar RangeChar(double num) {
 	if (num > 255)
 		return 255;
 	if (num < 0)
 		return 0;
-	return char(num);
+	return uchar(num);
 }
+
+// uchar RangeChar(uchar num) {
+// 	if (num > 255)
+// 		return 255;
+// 	if (num < 0)
+// 		return 0;
+// 	return num;
+// }
 
 #define PROCESSDECLARE													\
 	int y, x, h, w;														\
