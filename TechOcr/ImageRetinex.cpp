@@ -327,31 +327,95 @@ bool ComVecInRange(Vec3b &vec, Vec3b &min, Vec3b &max) {
 	return true;
 };
 
-Mat ComGetImageByColorRange(Mat &image, Mat &inter, int range) {
-	Vec3b vec, min, max;
+Mat ComGetImageByColorRange(Mat &image, Vec3b &min, Vec3b &max) {
 	Mat src;
-	int count;
 	src = image.clone();
 	DECLARE_ONEMAT(DIM_2, Vec3b);
-// 	int tt = 0, ff = 0;
 
-	count = pocGetMaxIntegra(inter, vec);
-	ComGetMinMaxByRange(inter.size[0], range, vec, min, max);
 	INIT_ONEMAT(DIM_2, Vec3b);
 	if (!ComVecInRange(*srcnow, min, max)) {
 		(*srcnow)[2] = (*srcnow)[1] = (*srcnow)[0] = 255;
-// 		ff++;
 	}
-// 	else {
-// 		tt++;
-// 	}
 	EXIT_ONEMAT(DIM_2, Vec3b);
 	return src;
 }
 
+// http://www.linuxidc.com/Linux/2014-04/99998.htm
+bool Sobel(const Mat& image, Mat& result, int TYPE)
+{
+	if (image.channels() != 1)
+		return false;
+	// 系数设置
+	int kx(0);
+	int ky(0);
+	if (TYPE == 1) {
+		kx = 0; ky = 1;
+	}
+	else if (TYPE == 2) {
+		kx = 1; ky = 0;
+	}
+	else if (TYPE == 3) {
+		kx = 1; ky = 1;
+	}
+	else
+		return false;
+	// 设置mask
+	float mask[3][3] = { { 1,2,1 },{ 0,0,0 },{ -1,-2,-1 } };
+	Mat y_mask = Mat(3, 3, CV_32F, mask) / 8;
+	Mat x_mask = y_mask.t(); // 转置
+							 // 计算x方向和y方向上的滤波
+	Mat sobelX, sobelY;
+	filter2D(image, sobelX, CV_32F, x_mask);
+	filter2D(image, sobelY, CV_32F, y_mask);
+	sobelX = abs(sobelX);
+	sobelY = abs(sobelY);
+	// 梯度图
+	Mat gradient = kx*sobelX.mul(sobelX) + ky*sobelY.mul(sobelY);
+	// 计算阈值
+	int scale = 4;
+	double cutoff = scale*mean(gradient)[0];
+	result.create(image.size(), image.type());
+	result.setTo(0);
+	for (int i = 1; i < image.rows - 1; i++)
+	{
+		float* sbxPtr = sobelX.ptr<float>(i);
+		float* sbyPtr = sobelY.ptr<float>(i);
+		float* prePtr = gradient.ptr<float>(i - 1);
+		float* curPtr = gradient.ptr<float>(i);
+		float* lstPtr = gradient.ptr<float>(i + 1);
+		uchar* rstPtr = result.ptr<uchar>(i);
+		// 阈值化和极大值抑制
+		for (int j = 1; j < image.cols - 1; j++)
+		{
+			if (curPtr[j] > cutoff && (
+				(sbxPtr[j] > kx*sbyPtr[j] && curPtr[j] > curPtr[j - 1] && curPtr[j] > curPtr[j + 1]) ||
+				(sbyPtr[j] > ky*sbxPtr[j] && curPtr[j] > prePtr[j] && curPtr[j] > lstPtr[j])))
+				rstPtr[j] = 255;
+		}
+	}
+	return true;
+}
+
+Mat ComGetImageByColorRange(Mat &image, Mat &inter, int range) {
+	Vec3b vec, min, max;
+	int count;
+
+	count = pocGetMaxIntegra(inter, vec);
+	ComGetMinMaxByRange(inter.size[0], range, vec, min, max);
+	return ComGetImageByColorRange(image, min, max);
+}
+
+
 int GlobalStep = 4;
 int GlobalRange = 2;
 int GlobalMax = 0;
+int YStart = 0;
+int YEnd = 255;
+int UStart = 0;
+int UEnd = 100;
+int VStart = 0;
+int VEnd = 100;
+int Preprocess = 0;
 
 void OnStepChange(int step, void *image) {
 	double duration;
@@ -359,38 +423,52 @@ void OnStepChange(int step, void *image) {
 	Mat src = ((Mat*)image)->clone();
 	Mat hist, inter;
 	std::ostringstream str;
-
- 	if (false) {
-		TrRetinexBalance(src);			// Jun. 23 '16
- 	}
-
-	TrRetinexBalance(src);
-	ComImShow("src", src);
-	if (GlobalStep < 1) {
-		GlobalStep = 1;
-	}
-	int globalstep = 1 << GlobalStep;
-	TrMatRgbToYuv(src);
-
-	Mat YChannel, UChannel, VChannel;
-	vector<Mat> channels(3);
-	split(src, channels);
-// 	Mat eqsrc;
-	VChannel = channels.at(0);
-	UChannel = channels.at(1);
-	YChannel = channels.at(2);
-
-// 	equalizeHist(VChannel, VChannel);
-	merge(channels, src);
-
-	hist = pocHist(src, globalstep);
-	inter = pocIntegralHist(hist, GlobalRange);
-
 	Vec3b vec, min, max;
 
-	vec = ComRemoveTopN(inter, GlobalMax, GlobalRange);
-	src = ComGetImageByColorRange(src, inter, GlobalRange);
-	ComGetMinMaxByRange(inter.size[0], GlobalRange, vec, min, max);
+	IplImage ipl;
+// http://blog.csdn.net/fm0517/article/details/7479090
+	ipl = IplImage(src);
+	if (Preprocess < 3) {
+		Preprocess = 3;
+	}
+	Retinex(&ipl, Preprocess);
+	ComImShow("src", src);
+
+	if (false) {			// get color range
+		if (GlobalStep < 1) {
+			GlobalStep = 1;
+		}
+		int globalstep = 1 << GlobalStep;
+		TrMatRgbToYuv(src);
+
+		Mat YChannel, UChannel, VChannel;
+		vector<Mat> channels(3);
+		split(src, channels);
+		// 	Mat eqsrc;
+		VChannel = channels.at(0);
+		UChannel = channels.at(1);
+		YChannel = channels.at(2);
+
+		// 	equalizeHist(VChannel, VChannel);
+		merge(channels, src);
+
+		hist = pocHist(src, globalstep);
+		inter = pocIntegralHist(hist, GlobalRange);
+
+		vec = ComRemoveTopN(inter, GlobalMax, GlobalRange);
+		src = ComGetImageByColorRange(src, inter, GlobalRange);
+		ComGetMinMaxByRange(inter.size[0], GlobalRange, vec, min, max);
+	}
+	if (true) {
+		ComImShow("ret", src);
+
+// 		cvtColor(src, src, CV_BGR2HSV);
+// 		TrMatRgbToYuv(src);
+
+		Vec3b min = Vec3b(YStart, UStart, VStart);
+		Vec3b max = Vec3b(YEnd, UEnd, VEnd);
+		src = ComGetImageByColorRange(src, min, max);
+	}
 
 	duration = static_cast<double>(cv::getCPUTickCount()) - duration;
 	duration /= cv::getTickFrequency(); // the elapsed time in ms
@@ -399,7 +477,10 @@ void OnStepChange(int step, void *image) {
 	str << (double)max[0] << " " << (double)max[1] << " " << (double)max[2] << " ";
 
  	str << duration << "s";
-	TrMatYuvToRgb(src);
+
+// 	cvtColor(src, src, CV_HSV2BGR);
+//	TrMatYuvToRgb(src);
+
 	putText(src, str.str(), Point(0, src.rows - 30), CV_FONT_HERSHEY_TRIPLEX, src.rows / 600, Scalar(23, 123, 223), src.rows / 300, src.rows / 300);
 	ComImShow("dst", src);
 	src.release();
@@ -412,11 +493,65 @@ void pocRetinex(char *filename)
 	Mat image = imread(filename);
 
 	namedWindow("src");
+	namedWindow("ret");
 	namedWindow("dst");
+	ComImShow("src", image);
 
-	createTrackbar("Step", "dst", &GlobalStep, 8, OnStepChange, &image);
-	createTrackbar("Range", "dst", &GlobalRange, 8, OnStepChange, &image);
-	createTrackbar("Max", "dst", &GlobalMax, 16, OnStepChange, &image);
+
+	Mat result1, result2, result3;
+	Mat image1c;
+	vector<Mat> channels(3);
+	split(image, channels);
+	result1 = channels.at(0);
+	result2 = channels.at(1);
+	result3 = channels.at(2);
+
+// 	cvtColor(image, image1c, CV_BGR2GRAY);
+
+	Sobel(result1, result1, 3);
+	Sobel(result2, result2, 3);
+	Sobel(result3, result3, 3);
+	ComImShow("result1", result1);
+	ComImShow("result2", result2);
+	ComImShow("result3", result3);
+	merge(channels, image);
+	ComImShow("image", image);
+
+
+	cvWaitKey(0);
+	return;
+
+	if (false) {
+		IplImage ipl;
+		ipl = IplImage(image);
+		Retinex(&ipl, 100);
+		Mat rst1, rst2;
+		float cvdata1[] = { -5, -10, -5, 10, 20, 10, -5, -10, -5 };
+		float cvdata2[] = { -5, 10, -5, -10, 20, -10, -5, 10, -5 };
+		Mat kernel1(3, 3, CV_32F, cvdata1);
+		Mat kernel2(3, 3, CV_32F, cvdata2);
+		filter2D(image, rst1, image.depth(), kernel1);
+		filter2D(image, rst2, image.depth(), kernel2);
+		ComImShow("rst1", rst1);
+		ComImShow("rst2", rst2);
+		waitKey(0);
+		return;
+	}
+
+	if (false) {			// get color range
+		createTrackbar("Step", "dst", &GlobalStep, 8, OnStepChange, &image);
+		createTrackbar("Range", "dst", &GlobalRange, 8, OnStepChange, &image);
+		createTrackbar("Max", "dst", &GlobalMax, 16, OnStepChange, &image);
+	}
+	if (true) {
+		createTrackbar("YStart", "dst", &YStart, 255, OnStepChange, &image);
+		createTrackbar("YRange", "dst", &YEnd, 255, OnStepChange, &image);
+		createTrackbar("UStart", "dst", &UStart, 255, OnStepChange, &image);
+		createTrackbar("URange", "dst", &UEnd, 255, OnStepChange, &image);
+		createTrackbar("VStart", "dst", &VStart, 255, OnStepChange, &image);
+		createTrackbar("VRange", "dst", &VEnd, 255, OnStepChange, &image);
+		createTrackbar("Preprocess", "dst", &Preprocess, 200, OnStepChange, &image);
+	}
 	OnStepChange(GlobalStep, &image);
 
 	waitKey(0);
