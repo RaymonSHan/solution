@@ -23,6 +23,7 @@
     <RootNamespace>TechOcr</RootNamespace>
     <Keyword>Win32Proj</Keyword>
     <ProjectName>TechOcrDll</ProjectName>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -136,7 +137,7 @@
     </ClCompile>
     <Link>
       <OutputFile>c:\output\$(SolutionName)\$(Platform)\$(Configuration)\$(ProjectName).dll</OutputFile>
-      <AdditionalLibraryDirectories>Z:\solution\lib\OpenCV2.4\x64\vc10\lib;Z:\solution\lib\libtesseract\debug</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\vs2015\opencv\bin\Debug;C:\vs2015\opencv\3rdparty\lib\Debug;Z:\solution\lib\libtesseract\debug</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>TechOcrDll.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -191,7 +192,7 @@
     </ClCompile>
     <Link>
       <OutputFile>c:\output\$(SolutionName)\$(Platform)\$(Configuration)\$(ProjectName).dll</OutputFile>
-      <AdditionalLibraryDirectories>Z:\solution\lib\OpenCV2.4\x64\vc10\lib;Z:\solution\lib\libtesseract\release</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\vs2015\opencv\bin\release;C:\vs2015\opencv\3rdparty\lib\release;Z:\solution\lib\libtesseract\release</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>TechOcrDll.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>

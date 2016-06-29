@@ -6,3 +6,8 @@ http://bbs.chinaunix.net/thread-3588524-1-1.html c++ 宏循环
 
 
 http://blog.csdn.net/scyscyao/article/details/5987581 模式识别
+
+
+http://www.cnblogs.com/easymind223/archive/2013/02/14/2911170.html stroke filter
+
+http://blog.csdn.net/lanbing510/article/details/40585789 如何解决vector 析构异常 opencv Assert _CrtIsValidHeapPointer

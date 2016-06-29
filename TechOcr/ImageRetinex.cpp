@@ -415,24 +415,33 @@ int UStart = 0;
 int UEnd = 100;
 int VStart = 0;
 int VEnd = 100;
-int Preprocess = 0;
+int Preprocess = 30;
+
+using namespace std;
+using namespace cv;
 
 void OnStepChange(int step, void *image) {
 	double duration;
 	duration = static_cast<double>(cv::getCPUTickCount());
 	Mat src = ((Mat*)image)->clone();
+	Mat src1c;
 	Mat hist, inter;
-	std::ostringstream str;
 	Vec3b vec, min, max;
 
+// http://blog.csdn.net/lanbing510/article/details/40585789
+ 	cv::vector<Mat> contours;
+	// so have to merge tesseract and opencv into static lib with vs2015
+
+	std::ostringstream str;
+
+
 	IplImage ipl;
-// http://blog.csdn.net/fm0517/article/details/7479090
+// // http://blog.csdn.net/fm0517/article/details/7479090
 	ipl = IplImage(src);
 	if (Preprocess < 3) {
 		Preprocess = 3;
 	}
 	Retinex(&ipl, Preprocess);
-	ComImShow("src", src);
 
 	if (false) {			// get color range
 		if (GlobalStep < 1) {
@@ -442,7 +451,7 @@ void OnStepChange(int step, void *image) {
 		TrMatRgbToYuv(src);
 
 		Mat YChannel, UChannel, VChannel;
-		vector<Mat> channels(3);
+		cv::vector<Mat> channels(3);
 		split(src, channels);
 		// 	Mat eqsrc;
 		VChannel = channels.at(0);
@@ -461,17 +470,30 @@ void OnStepChange(int step, void *image) {
 	}
 	if (true) {
 		ComImShow("ret", src);
-
 // 		cvtColor(src, src, CV_BGR2HSV);
 // 		TrMatRgbToYuv(src);
 
 		Vec3b min = Vec3b(YStart, UStart, VStart);
 		Vec3b max = Vec3b(YEnd, UEnd, VEnd);
 		src = ComGetImageByColorRange(src, min, max);
+
+		cvtColor(src, src1c, CV_BGR2GRAY);
+		adaptiveThreshold(src1c, src1c, 160, CV_ADAPTIVE_THRESH_MEAN_C,
+			CV_THRESH_BINARY_INV, 25, 10);
+
+	ComImShow("dst", src1c);
+		//findContours的输入是二值图像
+		findContours(src1c,
+			contours, // a vector of contours 
+			CV_RETR_LIST, // retrieve the external contours
+			CV_CHAIN_APPROX_NONE); // retrieve all pixels of each contours
+		for (int i = 0; i < contours.size(); i++) {
+			drawContours(src, contours, i, Scalar(216, 224, 11), 7);
+		}
 	}
 
 	duration = static_cast<double>(cv::getCPUTickCount()) - duration;
-	duration /= cv::getTickFrequency(); // the elapsed time in ms
+	duration /= cv::getTickFrequency(); // the elapsed time in s
 //  	str << src.rows << " * " << src.cols << "   ";
 	str << (double)min[0] << " " << (double)min[1] << " " << (double)min[2] << " ";
 	str << (double)max[0] << " " << (double)max[1] << " " << (double)max[2] << " ";
@@ -482,44 +504,65 @@ void OnStepChange(int step, void *image) {
 //	TrMatYuvToRgb(src);
 
 	putText(src, str.str(), Point(0, src.rows - 30), CV_FONT_HERSHEY_TRIPLEX, src.rows / 600, Scalar(23, 123, 223), src.rows / 300, src.rows / 300);
-	ComImShow("dst", src);
+	ComImShow("src", src);
 	src.release();
 // 	waitKey(1);
 
 }
 
-void pocRetinex(char *filename)
-{
+void OneSobel(Mat &src) {
+	Mat result1, result2, result3;
+	Mat srcsobel;
+	cv::vector<Mat> channels(3);
+	split(src, channels);
+	result1 = channels.at(0);
+	result2 = channels.at(1);
+	result3 = channels.at(2);
+	Sobel(result1, result1, 3);
+	Sobel(result2, result2, 3);
+	Sobel(result3, result3, 3);
+// 		ComImShow("result1", result1);
+// 		ComImShow("result2", result2);
+// 		ComImShow("result3", result3);
+	result1 &= result2;
+	result1 &= result3;
+	merge(channels, srcsobel);
+	ComImShow("image", srcsobel);
+
+}
+
+void pocRetinex(char *filename) {
 	Mat image = imread(filename);
 
 	namedWindow("src");
 	namedWindow("ret");
 	namedWindow("dst");
-	ComImShow("src", image);
 
-
-	Mat result1, result2, result3;
-	Mat image1c;
-	vector<Mat> channels(3);
-	split(image, channels);
-	result1 = channels.at(0);
-	result2 = channels.at(1);
-	result3 = channels.at(2);
-
-// 	cvtColor(image, image1c, CV_BGR2GRAY);
-
-	Sobel(result1, result1, 3);
-	Sobel(result2, result2, 3);
-	Sobel(result3, result3, 3);
-	ComImShow("result1", result1);
-	ComImShow("result2", result2);
-	ComImShow("result3", result3);
-	merge(channels, image);
-	ComImShow("image", image);
-
-
-	cvWaitKey(0);
-	return;
+// 	IplImage ipl;
+// 	// http://blog.csdn.net/fm0517/article/details/7479090
+// 	ipl = IplImage(image);
+// 	Retinex(&ipl, 3);
+// 	ComImShow("src", image);
+// 
+// 	Mat result1, result2, result3;
+// 	Mat image1c;
+// 	cv::vector<Mat> channels(3);
+// 	split(image, channels);
+// 	result1 = channels.at(0);
+// 	result2 = channels.at(1);
+// 	result3 = channels.at(2);
+// 	Sobel(result1, result1, 3);
+// 	Sobel(result2, result2, 3);
+// 	Sobel(result3, result3, 3);
+// 	ComImShow("result1", result1);
+// 	ComImShow("result2", result2);
+// 	ComImShow("result3", result3);
+// 	result1 &= result2;
+// 	result1 &= result3;
+// //	merge(channels, image);
+// 	ComImShow("image", result1);
+// 	cvWaitKey(0);
+// 	return;
 
 	if (false) {
 		IplImage ipl;

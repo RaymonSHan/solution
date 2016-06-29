@@ -8,16 +8,17 @@ delete[] gb; }
 
 #include "targetver.h"
 
+// for opencv
+#include "cv.h"
+#include <highgui.h>
+
 #define WIN32_LEAN_AND_MEAN
+#include <stdio.h>
 #include <windows.h>
 #include <iostream>
 
 #include "jni.h"
-
-// for opencv
-#include <stdio.h>
-#include "cv.h"
-#include <highgui.h>
+#include <Vfw.h>
 
 // for tesseract
 #include "allheaders.h"
@@ -32,21 +33,33 @@ delete[] gb; }
 #include "rcommon.h"
 // #include "ProcessFormat.h"
 
-#pragma comment(lib, "zlib.lib")
-#pragma comment(lib, "libpng.lib")
+// #pragma comment(lib, "zlib.lib")
+// #pragma comment(lib, "libpng.lib")
 #pragma comment(lib, "giflib.lib")
-#pragma comment(lib, "libjpeg.lib")
+// #pragma comment(lib, "libjpeg.lib")
 #pragma comment(lib, "openjpeg.lib")
-#pragma comment(lib, "libtiff.lib")
+// #pragma comment(lib, "libtiff.lib")
 #pragma comment(lib, "liblept.lib")
-#pragma comment(lib, "libpng.lib")
 #pragma comment(lib, "libtesseract.lib")
 
+#pragma comment(lib, "Vfw32.lib")
 #ifdef _DEBUG
+#pragma comment(lib, "IlmImfd.lib")
+#pragma comment(lib, "libjasperd.lib")
+#pragma comment(lib, "libjpegd.lib")
+#pragma comment(lib, "libpngd.lib")
+#pragma comment(lib, "libtiffd.lib")
+#pragma comment(lib, "zlibd.lib")
 #pragma comment(lib, "opencv_core2411d.lib")
 #pragma comment(lib, "opencv_imgproc2411d.lib")
 #pragma comment(lib, "opencv_highgui2411d.lib")
 #else _DEBUG
+#pragma comment(lib, "IlmImf.lib")
+#pragma comment(lib, "libjasper.lib")
+#pragma comment(lib, "libjpeg.lib")
+#pragma comment(lib, "libpng.lib")
+#pragma comment(lib, "libtiff.lib")
+#pragma comment(lib, "zlib.lib")
 #pragma comment(lib, "opencv_core2411.lib")
 #pragma comment(lib, "opencv_imgproc2411.lib")
 #pragma comment(lib, "opencv_highgui2411.lib")
