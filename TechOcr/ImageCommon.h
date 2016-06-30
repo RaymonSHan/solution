@@ -4,7 +4,10 @@
 std::cout << (b)->x << ", " << (b)->y << ", " << (b)->w << ", " << (b)->h << ", " \
 	<< gb << std::endl; \
 delete[] gb; }
-
+#define  OUTPUTRECT(b, s)	{ char *gb; long gsize; ComUtf8ToGbk(s, strlen(s), gb, gsize); \
+std::cout << (b)->x << ", " << (b)->y << ", " << (b)->width << ", " << (b)->height << ", " \
+	<< gb << std::endl; \
+delete[] gb; }
 
 #include "targetver.h"
 

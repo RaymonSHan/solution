@@ -405,10 +405,61 @@ Mat ComGetImageByColorRange(Mat &image, Mat &inter, int range) {
 	return ComGetImageByColorRange(image, min, max);
 }
 
+tesseract::TessBaseAPI* api;
+
+
+void ComDrawRotateRectByContour(Mat &image, Mat contour, Scalar& color, int thickness) {
+	RotatedRect rrect;
+	Rect rect;
+	Point2f points[4];
+	rrect = minAreaRect(contour);
+
+	static int count = 0;
+	char strbuffer[10];
+	int height, width;
+	char *str;
+	
+	if (abs(rrect.angle) < 45) {
+		height = rrect.size.height;
+		width = rrect.size.width;
+	}
+	else {
+		width = rrect.size.height;
+		height = rrect.size.width;
+	}
+	if (height > image.rows / 80 &&
+		height < image.rows / 14 &&
+		width &&
+		height / width < 2
+		/*(rrect.size.height + rrect.size.width > 200) &&
+		((rrect.size.width / rrect.size.height > 3) || (rrect.size.height / rrect.size.width > 3)) &&
+		abs(rrect.angle) < 45 &&
+		rrect.size.width > rrect.size.height*/
+		) {
+		rrect.points(points);
+		rect = rrect.boundingRect();
+
+		api->SetRectangle(rect.x, rect.y, rect.width, rect.height);
+		api->SetPageSegMode(tesseract::PSM_SINGLE_LINE);
+		api->Recognize(NULL);
+		str = api->GetUTF8Text();
+		OUTPUTRECT(&rect, str);
+
+		line(image, points[0], points[1], color, thickness);
+		line(image, points[1], points[2], color, thickness);
+		line(image, points[2], points[3], color, thickness);
+		line(image, points[3], points[0], color, thickness);
+
+		putText(image, itoa(count++, strbuffer, 10), points[0], CV_FONT_HERSHEY_TRIPLEX, 1, Scalar(223, 13, 123), 3, 3);
+
+	}
+}
 
 int GlobalStep = 4;
 int GlobalRange = 2;
 int GlobalMax = 0;
+
+// for ComGetImageByColorRange() choice
 int YStart = 0;
 int YEnd = 255;
 int UStart = 0;
@@ -416,6 +467,12 @@ int UEnd = 100;
 int VStart = 0;
 int VEnd = 100;
 int Preprocess = 30;
+
+// for erode & dilate choice
+int StepErode = 0;
+int StepDilate = 4;
+int StepMedian = 1;
+int StepGaussian = 0;
 
 using namespace std;
 using namespace cv;
@@ -427,16 +484,15 @@ void OnStepChange(int step, void *image) {
 	Mat src1c;
 	Mat hist, inter;
 	Vec3b vec, min, max;
+	RotatedRect rrect;
 
 // http://blog.csdn.net/lanbing510/article/details/40585789
- 	cv::vector<Mat> contours;
-	// so have to merge tesseract and opencv into static lib with vs2015
-
+// so have to merge tesseract and opencv into static lib with vs2015
+	vector<Mat> contours;
 	std::ostringstream str;
 
-
 	IplImage ipl;
-// // http://blog.csdn.net/fm0517/article/details/7479090
+// http://blog.csdn.net/fm0517/article/details/7479090
 	ipl = IplImage(src);
 	if (Preprocess < 3) {
 		Preprocess = 3;
@@ -468,46 +524,74 @@ void OnStepChange(int step, void *image) {
 		src = ComGetImageByColorRange(src, inter, GlobalRange);
 		ComGetMinMaxByRange(inter.size[0], GlobalRange, vec, min, max);
 	}
-	if (true) {
-		ComImShow("ret", src);
-// 		cvtColor(src, src, CV_BGR2HSV);
-// 		TrMatRgbToYuv(src);
-
-		Vec3b min = Vec3b(YStart, UStart, VStart);
-		Vec3b max = Vec3b(YEnd, UEnd, VEnd);
+	if (false) {			// findcontours, the most thing is heap error in ~vector http://blog.csdn.net/lanbing510/article/details/40585789
+		ComImShow("src", src);
+		min = Vec3b(YStart, UStart, VStart);
+		max = Vec3b(YEnd, UEnd, VEnd);
 		src = ComGetImageByColorRange(src, min, max);
 
 		cvtColor(src, src1c, CV_BGR2GRAY);
 		adaptiveThreshold(src1c, src1c, 160, CV_ADAPTIVE_THRESH_MEAN_C,
 			CV_THRESH_BINARY_INV, 25, 10);
 
-	ComImShow("dst", src1c);
-		//findContours的输入是二值图像
-		findContours(src1c,
-			contours, // a vector of contours 
-			CV_RETR_LIST, // retrieve the external contours
-			CV_CHAIN_APPROX_NONE); // retrieve all pixels of each contours
+		ComImShow("ret", src1c);
+		findContours(src1c, contours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
 		for (int i = 0; i < contours.size(); i++) {
 			drawContours(src, contours, i, Scalar(216, 224, 11), 7);
+		}
+	}
+	if (true) {
+		ComImShow("src", src);
+		min = Vec3b(YStart, UStart, VStart);
+		max = Vec3b(YEnd, UEnd, VEnd);
+		src = ComGetImageByColorRange(src, min, max);
+
+		Pix *pix = TrCreatePixFromIplImage(&ipl);
+		api->SetImage(pix);
+
+		cvtColor(src, src1c, CV_BGR2GRAY);
+		if (StepMedian)			// is 3
+			medianBlur(src1c, src1c, StepMedian * 2 + 1);
+		if (StepGaussian)		// is 0
+	 		GaussianBlur(src1c, src1c, cv::Size(StepGaussian * 2 + 1, StepGaussian * 2 + 1), 5, 5);
+		adaptiveThreshold(src1c, src1c, 160, CV_ADAPTIVE_THRESH_MEAN_C,
+			CV_THRESH_BINARY_INV, 25, 10);
+		if (StepErode)			// is 0
+			erode(src1c, src1c, Mat(3, StepErode * 6 + 1, CV_8U, Scalar(255)));
+		if (StepDilate)			// is 19 is better
+			dilate(src1c, src1c, Mat(3, 19/*StepDilate * 6 + 1*/, CV_8U, Scalar(255)));
+		ComImShow("ret", src1c);
+
+
+		findContours(src1c, contours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
+
+		for (int i = 0; i < contours.size(); i++) {
+// 			rrect = minAreaRect(contours[i]);
+			/*if (rrect.size.width > src.cols / 150 &&
+				rrect.size.width < src.cols / 10 &&
+				rrect.size.height > src.rows / 100 &&
+				rrect.size.height < src.rows / 10)*/ {
+				ComDrawRotateRectByContour(src, contours[i], Scalar(216, 224, 11), 2);
+// 				drawContours(src, contours, i, Scalar(216, 224, 11), 4);
+			}
+// 			void points(Point2f pts[]) const;
+// 			Point2f center; //< the rectangle mass center
+// 			Size2f size;    //< width and height of the rectangle
+// 			float angle;    //< the rotation angle. When the angle is 0, 90, 180, 270 etc., the rectangle becomes an up-right rectangle.
+
+// 			if 
 		}
 	}
 
 	duration = static_cast<double>(cv::getCPUTickCount()) - duration;
 	duration /= cv::getTickFrequency(); // the elapsed time in s
-//  	str << src.rows << " * " << src.cols << "   ";
 	str << (double)min[0] << " " << (double)min[1] << " " << (double)min[2] << " ";
 	str << (double)max[0] << " " << (double)max[1] << " " << (double)max[2] << " ";
-
  	str << duration << "s";
 
-// 	cvtColor(src, src, CV_HSV2BGR);
-//	TrMatYuvToRgb(src);
-
 	putText(src, str.str(), Point(0, src.rows - 30), CV_FONT_HERSHEY_TRIPLEX, src.rows / 600, Scalar(23, 123, 223), src.rows / 300, src.rows / 300);
-	ComImShow("src", src);
+	ComImShow("dst", src);
 	src.release();
-// 	waitKey(1);
-
 }
 
 void OneSobel(Mat &src) {
@@ -531,38 +615,36 @@ void OneSobel(Mat &src) {
 
 }
 
+int pocNormalSize(Mat &src, Mat &dst) {
+// make all image to about same size
+	int &x = src.cols;
+	int &y = src.rows;
+
+	if (x < 500 || y < 500) {
+		return 0;
+	}
+	if (x / y > 3 || y / x > 3) {
+		return 0;
+	}
+	int rate = (x + y) / 3000 + 1;
+// 	if (rate == 0) {
+// 		rate = 1;
+// 	}
+	dst.create(y / rate, x / rate, src.type());
+	resize(src, dst, dst.size(), INTER_LANCZOS4);
+	return rate;
+}
+
 void pocRetinex(char *filename) {
-	Mat image = imread(filename);
+	Mat imageora = imread(filename);
+	Mat image;
+	pocNormalSize(imageora, image);
 
 	namedWindow("src");
 	namedWindow("ret");
 	namedWindow("dst");
 
-// 	IplImage ipl;
-// 	// http://blog.csdn.net/fm0517/article/details/7479090
-// 	ipl = IplImage(image);
-// 	Retinex(&ipl, 3);
-// 	ComImShow("src", image);
-// 
-// 	Mat result1, result2, result3;
-// 	Mat image1c;
-// 	cv::vector<Mat> channels(3);
-// 	split(image, channels);
-// 	result1 = channels.at(0);
-// 	result2 = channels.at(1);
-// 	result3 = channels.at(2);
-// 	Sobel(result1, result1, 3);
-// 	Sobel(result2, result2, 3);
-// 	Sobel(result3, result3, 3);
-// 	ComImShow("result1", result1);
-// 	ComImShow("result2", result2);
-// 	ComImShow("result3", result3);
-// 	result1 &= result2;
-// 	result1 &= result3;
-// //	merge(channels, image);
-// 	ComImShow("image", result1);
-// 	cvWaitKey(0);
-// 	return;
+	api = TechOcrInitTessAPI();
 
 	if (false) {
 		IplImage ipl;
@@ -586,7 +668,7 @@ void pocRetinex(char *filename) {
 		createTrackbar("Range", "dst", &GlobalRange, 8, OnStepChange, &image);
 		createTrackbar("Max", "dst", &GlobalMax, 16, OnStepChange, &image);
 	}
-	if (true) {
+	if (false) {			// for ComGetImageByColorRange() choice
 		createTrackbar("YStart", "dst", &YStart, 255, OnStepChange, &image);
 		createTrackbar("YRange", "dst", &YEnd, 255, OnStepChange, &image);
 		createTrackbar("UStart", "dst", &UStart, 255, OnStepChange, &image);
@@ -594,6 +676,12 @@ void pocRetinex(char *filename) {
 		createTrackbar("VStart", "dst", &VStart, 255, OnStepChange, &image);
 		createTrackbar("VRange", "dst", &VEnd, 255, OnStepChange, &image);
 		createTrackbar("Preprocess", "dst", &Preprocess, 200, OnStepChange, &image);
+	}
+	if (true) {
+		createTrackbar("Erode", "dst", &StepErode, 10, OnStepChange, &image);
+		createTrackbar("Dilate", "dst", &StepDilate, 10, OnStepChange, &image);
+		createTrackbar("Median", "dst", &StepMedian, 10, OnStepChange, &image);
+		createTrackbar("Gaussian", "dst", &StepGaussian, 10, OnStepChange, &image);
 	}
 	OnStepChange(GlobalStep, &image);
 
