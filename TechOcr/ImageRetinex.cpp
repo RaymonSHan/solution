@@ -427,10 +427,10 @@ void ComDrawRotateRectByContour(Mat &image, Mat contour, Scalar& color, int thic
 		width = rrect.size.height;
 		height = rrect.size.width;
 	}
-	if (height > image.rows / 80 &&
-		height < image.rows / 14 &&
+	if (height > image.rows / 120 &&
+		height < image.rows / 10 &&
 		width &&
-		height / width < 2
+		height / width < /*2*/10
 		/*(rrect.size.height + rrect.size.width > 200) &&
 		((rrect.size.width / rrect.size.height > 3) || (rrect.size.height / rrect.size.width > 3)) &&
 		abs(rrect.angle) < 45 &&
@@ -445,12 +445,13 @@ void ComDrawRotateRectByContour(Mat &image, Mat contour, Scalar& color, int thic
 		str = api->GetUTF8Text();
 		OUTPUTRECT(&rect, str);
 
+// 		rectangle(image, rect, color, thickness);
 		line(image, points[0], points[1], color, thickness);
 		line(image, points[1], points[2], color, thickness);
 		line(image, points[2], points[3], color, thickness);
 		line(image, points[3], points[0], color, thickness);
 
-		putText(image, itoa(count++, strbuffer, 10), points[0], CV_FONT_HERSHEY_TRIPLEX, 1, Scalar(223, 13, 123), 3, 3);
+// 		putText(image, itoa(count++, strbuffer, 10), points[0], CV_FONT_HERSHEY_TRIPLEX, 1, Scalar(223, 13, 123), 3, 3);
 
 	}
 }
@@ -492,13 +493,18 @@ void OnStepChange(int step, void *image) {
 	std::ostringstream str;
 
 	IplImage ipl;
+	Pix *pix;
 // http://blog.csdn.net/fm0517/article/details/7479090
 	ipl = IplImage(src);
+
+	
 	if (Preprocess < 3) {
 		Preprocess = 3;
 	}
 	Retinex(&ipl, Preprocess);
 
+		pix = TrCreatePixFromIplImage(&ipl);
+		api->SetImage(pix);
 	if (false) {			// get color range
 		if (GlobalStep < 1) {
 			GlobalStep = 1;
@@ -546,31 +552,32 @@ void OnStepChange(int step, void *image) {
 		max = Vec3b(YEnd, UEnd, VEnd);
 		src = ComGetImageByColorRange(src, min, max);
 
-		Pix *pix = TrCreatePixFromIplImage(&ipl);
-		api->SetImage(pix);
 
 		cvtColor(src, src1c, CV_BGR2GRAY);
 		if (StepMedian)			// is 3
 			medianBlur(src1c, src1c, StepMedian * 2 + 1);
-		if (StepGaussian)		// is 0
-	 		GaussianBlur(src1c, src1c, cv::Size(StepGaussian * 2 + 1, StepGaussian * 2 + 1), 5, 5);
-		adaptiveThreshold(src1c, src1c, 160, CV_ADAPTIVE_THRESH_MEAN_C,
-			CV_THRESH_BINARY_INV, 25, 10);
-		if (StepErode)			// is 0
-			erode(src1c, src1c, Mat(3, StepErode * 6 + 1, CV_8U, Scalar(255)));
+// 		if (StepGaussian)		// is 0
+// 	 		GaussianBlur(src1c, src1c, cv::Size(StepGaussian * 2 + 1, StepGaussian * 2 + 1), 5, 5);
+		ComImShow("ret", src1c);
+		adaptiveThreshold(src1c, src1c, 80, CV_ADAPTIVE_THRESH_MEAN_C,
+			CV_THRESH_BINARY_INV, 75, 10);
+		ComImShow("ret1", src1c);
+
+// 		if (StepErode)			// is 0
+// 			erode(src1c, src1c, Mat(3, StepErode * 6 + 1, CV_8U, Scalar(255)));
 		if (StepDilate)			// is 19 is better
 			dilate(src1c, src1c, Mat(3, 19/*StepDilate * 6 + 1*/, CV_8U, Scalar(255)));
-		ComImShow("ret", src1c);
+		ComImShow("ret2", src1c);
 
 
 		findContours(src1c, contours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
 
 		for (int i = 0; i < contours.size(); i++) {
-// 			rrect = minAreaRect(contours[i]);
-			/*if (rrect.size.width > src.cols / 150 &&
+			rrect = minAreaRect(contours[i]);
+			if (/*rrect.size.width > src.cols / 150 &&
 				rrect.size.width < src.cols / 10 &&
 				rrect.size.height > src.rows / 100 &&
-				rrect.size.height < src.rows / 10)*/ {
+				rrect.size.height < src.rows / 10*/true) {
 				ComDrawRotateRectByContour(src, contours[i], Scalar(216, 224, 11), 2);
 // 				drawContours(src, contours, i, Scalar(216, 224, 11), 4);
 			}

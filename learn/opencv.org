@@ -11,3 +11,78 @@ http://blog.csdn.net/scyscyao/article/details/5987581 模式识别
 http://www.cnblogs.com/easymind223/archive/2013/02/14/2911170.html stroke filter
 
 http://blog.csdn.net/lanbing510/article/details/40585789 如何解决vector 析构异常 opencv Assert _CrtIsValidHeapPointer
+
+
+tesseract source
+
+** SetPageSegMode
+void TessBaseAPI::SetPageSegMode(PageSegMode mode) {
+  if (tesseract_ == NULL)
+    tesseract_ = new Tesseract;
+  tesseract_->tessedit_pageseg_mode.set_value(mode);
+}
+
+Textord::TextordPage() important
+  Tesseract::SegmentPage
+    TessBaseAPI::FindLines
+      TessBaseAPI::Recognize
+
+* modi
+http://wenku.baidu.com/link?url=tvvByFZ_TTMCDkQ_XoEwmXAwezKP7h6lDiM0O0bPFzdnS0Kobn3-UC-ZMqCLWZ4AEfjPoLkD0fbPAeOzQm3AA6hhzGEdSO6ihIOT9pw3L43 vb modi sample
+http://www.codeproject.com/Articles/17291/OCR-With-MODI-in-Visual-C vc modi sample
+https://github.com/MathiasPius/modil write and read bpp image and ocr
+http://zhidao.baidu.com/link?url=8aHlunjqiUKC5Sz17U91FpkPm_1K5G2oy486lE_o6hAUDvFL3PW-esKPsnjDcoSeNmi9mw7Bddr0pWT3JII7ga dll name
+http://www.jb51.net/dll/interop.modi.dll.html#download dll download
+
+
+
+
+
+
+
+
+
+
+
+* GEB
+http://www.zhihu.com/question/19554287
+
+** download
+http://vdisk.weibo.com/s/CdPPQHuuLi6pJ
+
+
+* 世界观
+
+物质，肉体是离散的
+能量，精神是连续的
+即物质世界与理想世界
+
+能量的运动，即空间？
+能量向物质的转化，即时间？
+空间是连续的，时间是离散的？或者相反？
+
+连续的能量，向离散的物质的降维过程，即宇宙
+
+能量的有序组合，即信息
+信息超过临界的聚积，即生命
+
+物质有位置，能量有运动，即测不准原理
+
+连续世界，即无边玄妙方广世界
+
+不可判定，即自主意识？
+
+存在与时间？
+
+《地球之外的生命》 ：宇宙是一种精神
+
+原子跃迁序列，与音乐的关系？
+
+四种物理力：离散之间，连续之间，离散向连续，连续向离散
+
+！！！科学就是放弃物理上的可解释性，而换取数学上的可描述性和可预测性！！！
+
+！！！时间是直觉的一种形式！！！康德
+
+
+
