@@ -22,10 +22,7 @@ void TessBaseAPI::SetPageSegMode(PageSegMode mode) {
   tesseract_->tessedit_pageseg_mode.set_value(mode);
 }
 
-Textord::TextordPage() important
-  Tesseract::SegmentPage
-    TessBaseAPI::FindLines
-      TessBaseAPI::Recognize
+
 
 * modi
 http://wenku.baidu.com/link?url=tvvByFZ_TTMCDkQ_XoEwmXAwezKP7h6lDiM0O0bPFzdnS0Kobn3-UC-ZMqCLWZ4AEfjPoLkD0fbPAeOzQm3AA6hhzGEdSO6ihIOT9pw3L43 vb modi sample
@@ -37,8 +34,27 @@ http://www.jb51.net/dll/interop.modi.dll.html#download dll download
 
 
 
+* training
+** url
+http://blog.csdn.net/dragoo1/article/details/8439373 most clear, but missing
+http://wenku.baidu.com/link?url=qdk8BL-ZRMdvleCjks90WkaZCi4orgOKQeysyC59llHR0bsqg04uOKYg761vHyT-iIdmCSKrzVzCOJP68DrDOMmkP4WJiwnqJ_HGiOGA3gC font file
+http://www.cnblogs.com/huyulin/p/3305563.html one error for shape
 
+** step
+create box file via tif
+create font_properties with line "song 0 0 0 0 0"
 
+..\tesseract test.song.exp01.tif test.song.exp01 nobatch box.train
+..\tesseract test.song.exp02.tif test.song.exp02 nobatch box.train
+..\unicharset_extractor test.song.exp01.box test.song.exp02.box
+..\mftraining -U unicharset -O test.unicharset test.song.exp01.tr test.song.exp02.tr
+..\cntraining test.song.exp01.tr test.song.exp02.tr
+rename normproto test.normproto
+rename Microfeat test.Microfeat
+rename inttemp test.inttemp
+rename pffmtable test.pffmtable
+rename shapetable test.shapetable
+..\combine_tessdata test.
 
 
 
