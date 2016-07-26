@@ -59,6 +59,13 @@ rename shapetable test.shapetable
 
 
 
+** font
+http://www.bianceng.cn/Programming/cplus/201404/40531.htm by directwrite
+http://blog.163.com/guo_linda/blog/static/1237730572011425105235527/ common use of cfontdialog
+http://www.jizhuomi.com/software/175.html write font in dialog
+useful http://stackoverflow.com/questions/11253827/too-many-fonts-when-enumerating-with-enumfontfamiliesex-function
+and http://stackoverflow.com/questions/3486546/enumerating-active-fonts-in-c-sharp-using-dll-call-to-enumfontfamiliesex-has-me
+sample http://bbs.csdn.net/topics/390461315
 
 * GEB
 http://www.zhihu.com/question/19554287
@@ -102,3 +109,6 @@ http://vdisk.weibo.com/s/CdPPQHuuLi6pJ
 
 
 
+
+* daily
+20160725 POC for bitmap and CDC, POC for EnumFontFamiliesEx
