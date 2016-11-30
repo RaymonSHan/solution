@@ -74,6 +74,12 @@ http://www.zhihu.com/question/19554287
 http://vdisk.weibo.com/s/CdPPQHuuLi6pJ
 
 
+* obs
+start https://github.com/jp9000/obs-studio/wiki/Install-Instructions#windows
+  http://blog.csdn.net/tanningzhong/article/details/51907039
+  http://www.52codes.net/article/4849.html
+  C1001 http://www.52codes.net/article/4996.html
+
 * 世界观
 
 物质，肉体是离散的
@@ -107,7 +113,60 @@ http://vdisk.weibo.com/s/CdPPQHuuLi6pJ
 
 ！！！时间是直觉的一种形式！！！康德
 
+** 康托尔集的十进制表示
+将线段等分10份，标为0-9,去调1,3,5,7,9段。将剩余的0,2,4,6,8段，每段等分10份，并如此反复无穷。
+得到的点集，是所有仅含数字0,2,4,6,8的实数。
+边长 r=(1/2)^n
+边数 N(r)＝5^n
+D=lnN(r)/ln(1/r)=ln5/ln2
 
+
+* xbrl
+** step
+http://wenku.baidu.com/link?url=Euc5xbzH-NnJ60LMH7FSgr52htOncJumDKYhmDpP90a8RumamRurGcMLxRPtThbW4mR3QvBuKk_9ytn75l0VokdByNIQJx6x-HRJkPHRuka
+NXD:Apache的Xindice  now in http://attic.apache.org/  not used now !!
+
+http://stackoverflow.com/questions/2336979/dump-a-java-hashmapk-v-to-xml-and-back
+xstream
+
+http://stackoverflow.com/questions/18830638/java-parse-xml-and-bind-all-data-content-to-a-map-k-v
+java DOM
+
+http://docs.oracle.com/cd/B10501_01/appdev.920/a96620/xdb04cre.htm
+oracel xmltype
+
+http://www.oschina.net/project/tag/263/xml-database
+six type xml db
+
+http://couchdb.apache.org/
+doc database
+
+http://www.codeproject.com/Articles/76814/WebControls/
+http://www.codeproject.com/Articles/131675/Generate-SQL-Database-Schema-from-XML-Part-Code
+create database table from XML
+
+http://blog.csdn.net/sfrankzhang/article/details/8151170
+FOR XML AUTO in SQL server
+
+http://blog.csdn.net/gobitan/article/details/1545998
+desc four native-xml database
+
+http://www.oracle.com/technetwork/database/berkeleydb/overview/index-083851.html
+http://blog.csdn.net/dongle2001/article/details/1565240 chinese version desc
+Oracle Berkeley DB XML
+
+** Berkeley DB
+http://docs.oracle.com/cd/E17276_01/html/toc.htm classic
+http://www.cnblogs.com/me115/p/3395396.html chinese data for insert query : faster than redis
+http://www.cnblogs.com/me115/p/3324040.html normal c++
+http://www.micmiu.com/nosql/berkeley/berkeley-tutorial/ normal java
+http://blog.csdn.net/gobitan/article/details/1552101 shell
+
+*** following classic
+http://docs.oracle.com/cd/E17276_01/html/intro_xml/index.html
+
+http://docs.oracle.com/cd/E17276_01/html/intro_xml/introduction.html
+BDX支持以XQuery方式快速查询百万记的XML文件。BDX默认使用节点存储方式，以提高查询效率；此时如进行文件查询，返回同构的XML文档。
 
 
 * daily

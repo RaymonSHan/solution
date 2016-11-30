@@ -1,0 +1,10 @@
+
+2016/11/14
+* URL
+** echart 2.0 http://echarts.baidu.com/echarts2/index.html
+** echart 3.0 http://echarts.baidu.com/index.html
+
+** very begining http://echarts.baidu.com/echarts2/doc/start.html
+
+* d3 example
+http://blog.csdn.net/lzhlzz/article/details/34429675
